@@ -47,7 +47,7 @@ pueden leer enteros.
 | 6 | Comentarios: hilos, antispam en ocho capas, cola de moderación | hecho |
 | 3 | Caché de página completa, fuentes autoalojadas | hecho |
 | — | Formulario de contacto: antispam propio, bandeja en el panel | hecho |
-| 8 | Instalador, TOTP, endurecido final | pendiente |
+| 8 | Instalador que se borra solo, TOTP, sesiones revocables, fail2ban | hecho |
 
 ## Requisitos
 
@@ -224,6 +224,54 @@ el resto del CMS. Alcanza para reconocer a quien ya comentó —y publicarle
 directo, si se apaga «moderar siempre»— sin que un volcado de la base sea una
 lista de correos. El avatar son iniciales dibujadas con CSS, no Gravatar.
 
+## Instalación
+
+```bash
+git clone https://github.com/jeremiaspala/nerdo-cms.git
+cd nerdo-cms
+composer install --no-dev
+```
+
+Después, `https://tu-dominio/install.php`: chequea los requisitos, arma las
+tablas, crea tu usuario y genera los dos secretos de la instalación. **Se
+borra solo al terminar**, y si no puede —porque PHP no escribe en ese
+directorio, que es como tiene que estar en producción— lo dice y hay que
+borrarlo a mano.
+
+Si tampoco puede escribir el `.env`, por el mismo motivo, muestra el
+contenido en pantalla para pegarlo:
+
+```bash
+nano .env        # pegar lo que mostró el instalador
+chmod 600 .env
+rm public/install.php
+```
+
+Sin instalador, por consola:
+
+```bash
+cp .env.example .env && chmod 600 .env   # y completarlo
+php bin/console migrate
+php bin/console user:create --email=vos@dominio --name="Tu Nombre"
+```
+
+## Entrar al panel
+
+El login pide contraseña y, si está activado, un código de seis dígitos. Las
+dos cosas pasan por una **prueba de trabajo en el navegador**: medio segundo
+para una persona, carísimo para quien prueba listas de contraseñas. No hay
+captcha de terceros mirando quién entra.
+
+- **Segundo factor (TOTP)**: se activa en *Seguridad*. Sirve cualquier
+  aplicación de autenticación; el CMS no habla con ningún servicio. El
+  secreto se guarda cifrado con la `APP_KEY`.
+- **Si se pierde el teléfono**: `php bin/console user:totp-off --email=…`.
+  Es la única forma, y a propósito: por la web no hay puerta de atrás.
+- **Si se pierde la contraseña**: el enlace por correo dura una hora y se usa
+  una sola vez; al usarlo se cierran todas las sesiones de la cuenta.
+- **Sesiones abiertas**: se ven y se cierran desde *Seguridad*, de a una o
+  todas las demás.
+
 ## Producción
 
 El `DocumentRoot` apunta a `public/`. **Nada más puede ser alcanzable por web.**
@@ -265,6 +313,64 @@ chown -R www-data /var/www/nerdadas/storage /var/www/nerdadas/public/uploads
 chmod 770 /var/www/nerdadas/storage /var/www/nerdadas/public/uploads
 chmod 600 /var/www/nerdadas/.env
 ```
+
+## fail2ban
+
+El CMS **no guarda IPs en claro** —lo que circula es un HMAC—, así que el
+filtro lee el log de Apache, que sí las tiene porque es el registro del
+servidor web y no un dato que el CMS haya decidido almacenar.
+
+`/etc/fail2ban/filter.d/nerdo-panel.conf`:
+
+```ini
+[Definition]
+# Intentos fallidos contra el panel: 401 (clave o código incorrectos),
+# 422 (verificación del navegador) y 429 (bloqueo por intentos).
+failregex = ^<HOST> .* "POST /PANEL(/codigo)? HTTP/[\d.]+" (401|422|429)
+ignoreregex =
+```
+
+`/etc/fail2ban/filter.d/nerdo-spam.conf`:
+
+```ini
+[Definition]
+# Comentarios y contacto rechazados: casi siempre es un robot.
+failregex = ^<HOST> .* "POST /(comentarios|contacto) HTTP/[\d.]+" (4\d\d)
+ignoreregex =
+```
+
+`/etc/fail2ban/jail.d/nerdo.conf`:
+
+```ini
+[nerdo-panel]
+enabled  = true
+port     = http,https
+logpath  = /var/log/apache2/nerdadas-access.log
+maxretry = 5
+findtime = 10m
+bantime  = 2h
+
+[nerdo-spam]
+enabled  = true
+port     = http,https
+logpath  = /var/log/apache2/nerdadas-access.log
+maxretry = 20
+findtime = 10m
+bantime  = 1h
+```
+
+Reemplazar `PANEL` por la ruta real del panel (la de `ADMIN_PATH`), que no
+debería ser `/panel`. Probar el filtro antes de confiar en él:
+
+```bash
+fail2ban-regex /var/log/apache2/nerdadas-access.log \
+  /etc/fail2ban/filter.d/nerdo-panel.conf
+```
+
+Esto es la capa de afuera: adentro ya están el límite de tasa por IP y por
+cuenta, el bloqueo escalonado de la cuenta y la prueba de trabajo. fail2ban
+agrega lo que esas no pueden: dejar de gastar PHP en alguien que ya demostró
+a qué vino.
 
 ## Decisiones que conviene no revertir
 
@@ -321,21 +427,30 @@ Quill (BSD-3-Clause) e Inter y Montserrat (OFL) están incluidos con su
 archivo de licencia, y HTMLPurifier (LGPL-2.1-or-later) entra por Composer y
 no se distribuye acá.
 
-## El saneador es el punto crítico
+## El HTML lo escribe el servidor
 
-`app/Services/HtmlSanitizer.php` es el archivo más sensible del proyecto: lo que
-sale de ahí es lo único que después se imprime sin escapar.
+El editor del panel no manda HTML: manda **bloques** (`{"type":"header",
+"data":{"text":"…","level":2}}`) y `app/Services/BlockRenderer.php` arma el
+HTML a partir de una lista cerrada. Un tipo de bloque que no esté ahí no
+produce nada, los textos pasan por una lista blanca de seis etiquetas de
+formato, las imágenes solo pueden apuntar a `/uploads/` y los videos solo a
+los dos dominios que admite la CSP.
 
-La lista de formatos que configura Quill del lado del cliente **no es seguridad**:
-cualquiera puede mandar un POST a `/panel/entradas/guardar` con el cuerpo que
-quiera. Comprobado contra inyección directa — se eliminan `<script>`, `onerror`,
-`onmouseover`, `javascript:`, `<iframe>`, `<form>`, `style=` y las clases
-arbitrarias; sobreviven las clases `ql-*` de alineación y las imágenes locales.
-Las imágenes remotas se bloquean a propósito: son píxeles de rastreo y además
-rompen la CSP.
+El cambio no es de comodidad. Antes había que decidir qué sobrevivía de un
+HTML que venía de afuera —un problema de lista negra disfrazado de lista
+blanca, que se gana solo si la lista está completa—. Ahora no hay nada que
+sanear porque no entra HTML.
 
-Se sanea **al guardar**, no al mostrar: el costo se paga una vez por edición y
-lo que hay en la base ya es seguro.
+`app/Services/HtmlSanitizer.php` sigue existiendo y sigue siendo crítico,
+pero para dos cosas acotadas: el cuerpo de los comentarios —que entra como
+texto plano, se escapa y recién ahí se convierte— y el contenido que importó
+WordPress, que ya está en la base.
+
+Las dos reglas que no cambian:
+
+- **Se sanea al guardar, no al mostrar.** El costo se paga una vez por
+  edición y lo que hay en la base ya es seguro.
+- **`body_html` es lo único que se imprime sin escapar** en todo el tema.
 
 ## Importar desde WordPress
 

@@ -626,3 +626,21 @@ textarea.in { resize: vertical; line-height: 1.6; }
   background: #f3f6f6; border: 1px dashed var(--line); border-radius: 7px;
   padding: 12px 14px; margin: 12px 0; user-select: all; word-break: break-all;
 }
+
+/* ---------- instalador ---------- */
+.loginbox-ancha { max-width: 560px; }
+.installh2 {
+  font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-3); margin: 26px 0 10px; padding-top: 16px; border-top: 1px solid var(--line);
+}
+.checklist { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.checklist li { padding: 5px 0 5px 22px; position: relative; }
+.checklist li:before { position: absolute; left: 0; font-weight: 800; }
+.checklist .ok:before { content: "✓"; color: var(--accent); }
+.checklist .falta:before { content: "✗"; color: var(--danger); }
+.checklist .dim { color: var(--ink-3); margin-left: 6px; }
+.envbox {
+  width: 100%; font-family: var(--mono); font-size: 11.5px; line-height: 1.6;
+  border: 1px solid var(--line); border-radius: 7px; padding: 11px; background: #f7faf9;
+  resize: vertical;
+}

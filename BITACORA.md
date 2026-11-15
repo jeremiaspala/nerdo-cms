@@ -65,7 +65,7 @@ rsync -az --files-from=storage/import/uploads-originales.txt \
 | — | Configuración por secciones, correo mail()/SMTP, encabezado con foto, video embebido | hecho |
 | 6 | Comentarios: frente, antispam en capas, cola de moderación | hecho |
 | 3 | Caché de página + fuentes autoalojadas | hecho |
-| 8 | Instalador, TOTP, endurecido final | en curso: captcha y recuperación hechos |
+| 8 | Instalador, TOTP, sesiones revocables, fail2ban | hecho |
 | — | Formulario de contacto | hecho |
 
 **Contenido migrado**: 145 entradas publicadas + 22 borradores, 4 páginas,
@@ -76,15 +76,7 @@ Rango: 2011-10-14 → 2026-11-14.
 
 ## Próximos pasos, en orden
 
-### 1. Instalador y endurecido (fase 8) — ~3 días
-
-1. `install.php` que verifica requisitos, crea el esquema, genera `APP_KEY` y
-   `HASH_PEPPER`, pide la ruta del panel y **se borra solo**.
-2. TOTP obligatorio para el rol admin.
-3. Listado de sesiones activas en el panel, con botón de revocar.
-4. Reglas de `fail2ban` y el vhost de producción, ya escritos en el README.
-
-### 2. Despliegue
+### 1. Despliegue
 
 Recién cuando lo anterior esté. El sitio nuevo en un subdominio, los dos
 conviviendo unos días, comparar peticiones y errores, y después mover el DNS.
@@ -494,3 +486,46 @@ Probado: login con captcha, login con el captcha vacío y con uno inventado
 (422 las dos veces), pedido de enlace para una cuenta que existe y para una
 que no (misma respuesta), enlace usado dos veces (410 la segunda), token
 inventado (410), y el cierre de las seis sesiones abiertas.
+
+### 2026-11-14 (undécima parte)
+
+**Fase 8 terminada**: instalador, segundo factor, sesiones revocables y
+fail2ban.
+
+El **instalador** (`public/install.php`) verifica requisitos, corre las
+migraciones, crea el primer usuario, genera los dos secretos y se borra
+solo. Probado de verdad contra una base descartable, y ahí apareció lo que
+nunca se prueba hasta el peor momento: **en un servidor bien configurado PHP
+no puede escribir en la raíz del proyecto**, así que no puede crear el
+`.env` ni borrarse a sí mismo. No es un error, es la configuración correcta.
+Ahora muestra el `.env` en pantalla para pegarlo y avisa en rojo que hay que
+borrar el archivo a mano. También probado: segunda instalación sobre una
+base con usuarios (se niega) y los seis controles de los datos del
+formulario.
+
+El **TOTP** son ochenta líneas propias, verificadas contra el vector de
+prueba del RFC 6238 (secreto `12345678901234567890`, t=59 → 287082). El
+secreto va cifrado con la `APP_KEY`. No se dibuja el QR: hacerlo con un
+servicio de terceros sería mandarle el secreto a otro, y una librería de QR
+es mucho código para una pantalla que se usa una vez. Se muestra el secreto
+en grupos de cuatro y el enlace `otpauth://`, que en el teléfono abre la app
+sola. La salida de emergencia es `php bin/console user:totp-off --email=…`.
+
+**fail2ban lee el log de Apache y no el del CMS**, y esa es la parte que
+había que pensar: el CMS no guarda IPs en claro, así que no tiene con qué
+alimentar a fail2ban. El log del servidor web sí las tiene, porque es su
+registro y no un dato que el CMS haya decidido almacenar. Quedaron escritos
+los dos filtros y el jail en el README.
+
+**Dos bugs de sesiones**, los dos de la misma familia —una sesión que
+autentica pero no se puede ver ni cerrar—:
+
+| Qué pasaba | Por qué |
+|---|---|
+| La fila perdía el `user_id` al recrearse | Si se borraban todas las sesiones de la cuenta mientras una estaba en uso, PHP la reescribía al terminar el script y el dueño se perdía |
+| La marca de dueño casi nunca llegaba | Con `session.lazy_write`, una sesión sin cambios pasa por `updateTimestamp()` y no por `write()`, y ese camino no tocaba el `user_id`. Era el de la mayoría de los requests |
+
+Y uno de modelo: `User::findById()` no traía `totp_secret`, así que el
+segundo paso del login rechazaba códigos correctos. Ahora hay un método
+aparte, que además evita cargar el secreto en memoria en cada request del
+panel.
