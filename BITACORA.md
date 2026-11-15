@@ -665,3 +665,20 @@ Cosas que aparecieron al hacerlo:
 - **La extensión del navegador no puede operar en `accounts.google.com`**, así
   que el paso de elegir la cuenta y aceptar los permisos lo tiene que hacer
   una persona. Era de esperar y está bien que sea así.
+
+**Dos cosas que se cerraron antes de probar con Google de verdad:**
+
+1. La comprobación del `id_token` se separó del intercambio del código
+   (`GoogleOAuth::parseIdToken()`), así se puede probar sin hablar con
+   Google. Probados los seis caminos: token para otra aplicación, emisor
+   falso, vencido, correo sin verificar, correo ausente y malformado — todos
+   rechazados. Un token sin nombre cae al usuario del correo, que es lo
+   buscado.
+2. Si la vuelta de Google falla o alguien cancela, ahora **se ve un aviso**
+   arriba del formulario. Importa justo en modo Prueba: una cuenta que no
+   está en la lista de usuarios de prueba vuelve sin nada y antes no pasaba
+   nada visible, que es la peor forma de fallar.
+
+Verificado también que con Google habilitado el circuito anónimo sigue
+intacto: comentario enviado, guardado como `anonimo`, y el desafío
+reutilizado rebota.

@@ -98,7 +98,20 @@
     guardar(location.hash.slice('#ncms-id='.length));
     history.replaceState(null, '', location.pathname + location.search + '#comentarios');
   } else if (location.hash.indexOf('#ncms-google=') === 0) {
+    // La vuelta de Google que no salió bien. Sin esto, la persona vuelve a
+    // la página y no pasa nada visible, que es la peor forma de fallar.
+    var motivo = location.hash.slice('#ncms-google='.length);
     history.replaceState(null, '', location.pathname + location.search + '#comentarios');
+
+    var aviso = document.createElement('p');
+    aviso.className = 'cmt-note';
+    aviso.setAttribute('role', 'status');
+    aviso.textContent = motivo === 'cancelado'
+      ? 'No se completó el ingreso con Google. Podés comentar igual completando tus datos.'
+      : 'No pudimos verificar esa cuenta de Google. Probá de nuevo o comentá completando tus datos.';
+
+    var donde = document.getElementById('cmt-google') || form;
+    donde.parentNode.insertBefore(aviso, donde);
   }
 
   aplicarIdentidad();

@@ -124,7 +124,20 @@ final class GoogleOAuth
             'grant_type' => 'authorization_code',
         ]);
 
-        $idToken = (string) ($respuesta['id_token'] ?? '');
+        return $this->parseIdToken((string) ($respuesta['id_token'] ?? ''));
+    }
+
+    /**
+     * Abre un id_token y comprueba que diga lo que tiene que decir.
+     *
+     * Está separado del intercambio a propósito: acá vive la decisión de
+     * seguridad —para quién es, quién lo emitió, cuándo vence, si el correo
+     * está verificado— y así se puede probar sin hablar con Google.
+     *
+     * @return array{email:string,nombre:string,sub:string}
+     */
+    public function parseIdToken(string $idToken): array
+    {
         $partes = explode('.', $idToken);
 
         if (count($partes) !== 3) {
