@@ -4,12 +4,10 @@
  *
  * Sin un solo script ni estilo en línea: la CSP no los admite y el panel no
  * es excepción. Todo el comportamiento vive en /assets/js/admin.js, y los
- * íconos son SVG en línea (ver app/Admin/icons.php): ni una tipografía de
+ * íconos son SVG en línea (ver app/Admin/ui.php): ni una tipografía de
  * íconos ni un dominio de terceros.
  */
 /** @var array $user @var string $adminPath @var array $counts @var string $current */
-
-require_once dirname(__DIR__) . '/icons.php';
 
 $nav = [
     ['dashboard', '', 'escritorio', 'Escritorio', null],

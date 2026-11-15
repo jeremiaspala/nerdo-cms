@@ -39,9 +39,8 @@ $verPrefijo = $type === 'page' ? '/p/' : '/';
           <span class="slug">/<?= e($p['slug']) ?></span>
         </td>
         <td class="nowrap">
-          <span class="pill pill-<?= e($p['status']) ?>">
-            <?= $p['status'] === 'published' ? 'publicada' : ($p['status'] === 'draft' ? 'borrador' : 'papelera') ?>
-          </span>
+          <?php [$estado, $etiqueta] = post_state($p); ?>
+          <span class="pill pill-<?= e($estado) ?>"><?= e($etiqueta) ?></span>
         </td>
         <td class="nowrap dim">
           <?= e(substr((string) ($p['published_at'] ?? $p['updated_at']), 0, 16)) ?>

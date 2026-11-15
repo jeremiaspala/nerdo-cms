@@ -183,10 +183,17 @@ final class ContentController extends AdminController
         // archivo del mes y en el feed.
         $this->app->pages->purgeAll();
 
-        return $this->back(
-            $this->editPath($type, $id),
-            $status === Post::STATUS_PUBLISHED ? 'Publicado.' : 'Guardado como borrador.'
-        );
+        // Programar y publicar terminan en el mismo estado y se distinguen
+        // por la fecha: el aviso tiene que decir cuál de las dos pasó.
+        if ($status !== Post::STATUS_PUBLISHED) {
+            $mensaje = 'Guardado como borrador.';
+        } elseif (strtotime($publishedAt) > time()) {
+            $mensaje = 'Programado para el ' . fecha_hora($publishedAt) . '.';
+        } else {
+            $mensaje = 'Publicado.';
+        }
+
+        return $this->back($this->editPath($type, $id), $mensaje);
     }
 
     public function trash(Request $request, string $type): Response

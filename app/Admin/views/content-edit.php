@@ -18,17 +18,24 @@ $verPrefijo = $type === 'page' ? '/p/' : '/';
   <div class="head">
     <div>
       <h1><?= $esNueva ? 'Nueva ' . ($type === 'page' ? 'página' : 'entrada') : 'Editar' ?></h1>
-      <?php if (!$esNueva && $post['status'] === 'published'): ?>
+      <?php if (!$esNueva): ?>
+        <?php [$estado, $etiqueta] = post_state($post); ?>
         <p class="sub">
-          <a href="<?= e($verPrefijo . $post['slug']) ?>" target="_blank" rel="noopener">
-            Ver publicada ↗
-          </a>
+          <span class="pill pill-<?= e($estado) ?>"><?= e($etiqueta) ?></span>
+          <?php if ($estado === 'published'): ?>
+            <a href="<?= e($verPrefijo . $post['slug']) ?>" target="_blank" rel="noopener">Ver publicada ↗</a>
+          <?php elseif ($estado === 'scheduled'): ?>
+            sale el <?= e(fecha_hora((string) $post['published_at'])) ?>
+          <?php endif; ?>
         </p>
       <?php endif; ?>
     </div>
     <div class="headactions">
       <button class="btn btn-ghost" type="submit" name="status" value="draft">Guardar borrador</button>
-      <button class="btn" type="submit" name="status" value="published">Publicar</button>
+      <?php /* El texto lo cambia admin.js a «Programar» cuando la fecha es
+               futura: el botón tiene que decir lo que va a pasar. */ ?>
+      <button class="btn" type="submit" name="status" value="published" id="publish-btn"
+              data-publicar="Publicar" data-programar="Programar">Publicar</button>
     </div>
   </div>
 
@@ -57,6 +64,31 @@ $verPrefijo = $type === 'page' ? '/p/' : '/';
         <input class="in" type="datetime-local" id="published_at" name="published_at"
                value="<?= e(date('Y-m-d\TH:i', strtotime((string) ($post['published_at'] ?: 'now')))) ?>">
         <p class="hint">Una fecha futura deja la entrada agendada: no aparece hasta que llegue.</p>
+
+        <?php /* El enlace definitivo, desde el primer borrador.
+                 Es lo que se pega en el programador de LinkedIn o Instagram
+                 días antes de que la entrada salga. Si después se cambia el
+                 slug, el CMS deja un 301 del viejo al nuevo, así que el que
+                 ya se programó sigue llevando a la entrada. */ ?>
+        <label class="lbl" for="permalink">Enlace</label>
+        <div class="copyrow">
+          <input class="in in-sm" type="text" id="permalink" readonly
+                 data-base="<?= e($siteUrl . $verPrefijo) ?>"
+                 value="<?= e($siteUrl . $verPrefijo . ($post['slug'] !== '' ? $post['slug'] : 'se-genera-del-titulo')) ?>">
+          <button class="btn btn-sm btn-ghost" type="button" id="copy-permalink"
+                  data-copied="¡Copiado!">Copiar</button>
+        </div>
+        <p class="hint" id="permalink-hint">
+          <?php if ($esNueva): ?>
+            Se arma con el slug. Empieza a funcionar cuando publiques.
+          <?php elseif (($estado ?? '') === 'scheduled'): ?>
+            Ya podés programarlo en tus redes: va a funcionar cuando la entrada salga.
+          <?php elseif (($estado ?? '') === 'published'): ?>
+            En línea. Si cambiás el slug, el viejo sigue funcionando con un 301.
+          <?php else: ?>
+            Mientras sea borrador devuelve 404. Si lo programás en tus redes, publicá antes de esa hora.
+          <?php endif; ?>
+        </p>
 
         <label class="lbl" for="slug">Slug</label>
         <input class="in" type="text" id="slug" name="slug" maxlength="190"

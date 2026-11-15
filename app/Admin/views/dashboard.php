@@ -49,9 +49,8 @@ $pageTitle = 'Escritorio';
             <a href="<?= e($adminPath) ?>/entradas/<?= (int) $p['id'] ?>"><?= e($p['title']) ?></a>
           </td>
           <td class="nowrap">
-            <span class="pill pill-<?= e($p['status']) ?>">
-              <?= $p['status'] === 'published' ? 'publicada' : ($p['status'] === 'draft' ? 'borrador' : 'papelera') ?>
-            </span>
+            <?php [$estado, $etiqueta] = post_state($p); ?>
+            <span class="pill pill-<?= e($estado) ?>"><?= e($etiqueta) ?></span>
           </td>
           <td class="nowrap dim"><?= e(substr((string) ($p['published_at'] ?? $p['updated_at']), 0, 10)) ?></td>
         </tr>

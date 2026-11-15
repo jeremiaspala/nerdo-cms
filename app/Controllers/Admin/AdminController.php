@@ -43,6 +43,11 @@ abstract class AdminController
 
     protected function render(string $template, array $data = []): Response
     {
+        // Ayudantes de presentación del panel (íconos, estado de una entrada).
+        // Va acá y no en el layout porque las plantillas hijas se renderizan
+        // antes que él y también los usan.
+        require_once $this->app->root . '/app/Admin/ui.php';
+
         return Response::html($this->app->adminView->page($template, $data + [
             // Lo que la plantilla hija defina en su propio ámbito no llega al
             // layout, así que estas dos se deciden acá.
@@ -50,6 +55,8 @@ abstract class AdminController
             'needsEditor' => $template === 'content-edit',
             'user' => $this->user,
             'adminPath' => $this->app->adminPath,
+            // Para armar el enlace público de una entrada desde el editor.
+            'siteUrl' => rtrim($this->app->env->get('APP_URL', '') ?? '', '/'),
             'csrf' => $this->app->csrf->field(),
             'flash' => $this->app->session->takeFlash(),
             'counts' => [

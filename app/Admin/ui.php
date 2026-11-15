@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 /**
- * Íconos del panel, como SVG en línea.
+ * Dos ayudantes de presentación del panel: los íconos y el estado de una
+ * entrada.
+ *
+ * ── Íconos, como SVG en línea ──
  *
  * Dibujados acá y no traídos de una tipografía de íconos ni de un paquete:
  * una fuente de íconos son 70 KB para usar diez glifos, y cualquier CDN de
@@ -54,4 +57,33 @@ function admin_icon(string $name): string
         . ' stroke="currentColor" stroke-width="1.7" stroke-linecap="round"'
         . ' stroke-linejoin="round" aria-hidden="true" focusable="false">'
         . ($paths[$name] ?? '') . '</svg>';
+}
+
+/**
+ * Estado de una entrada, para la etiqueta de color de los listados.
+ *
+ * «Programada» no es un estado en la base: es `published` con una fecha que
+ * todavía no llegó. En los listados hay que distinguirla igual, porque decir
+ * «publicada» de algo que no está en línea es mentir justo donde se mira
+ * para saber qué salió y qué no.
+ *
+ * @return array{0:string,1:string} clave para la clase CSS y etiqueta
+ */
+function post_state(array $post): array
+{
+    if (($post['status'] ?? '') === 'trash') {
+        return ['trash', 'papelera'];
+    }
+
+    if (($post['status'] ?? '') !== 'published') {
+        return ['draft', 'borrador'];
+    }
+
+    $at = (string) ($post['published_at'] ?? '');
+
+    if ($at !== '' && strtotime($at) > time()) {
+        return ['scheduled', 'programada'];
+    }
+
+    return ['published', 'publicada'];
 }

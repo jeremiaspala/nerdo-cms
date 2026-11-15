@@ -359,6 +359,68 @@
     refresh();
   })();
 
+  // ---- Enlace público: copiar, y mantenerlo al día con el slug.
+  //
+  // Es el enlace que se pega en el programador de LinkedIn o Instagram antes
+  // de que la entrada salga, así que tiene que mostrar siempre el definitivo
+  // y no el que había al abrir el formulario.
+  (function permalink() {
+    var field = document.getElementById('permalink');
+    var copy = document.getElementById('copy-permalink');
+    var slugField = document.getElementById('slug');
+    var titleField = document.getElementById('title');
+    if (!field) { return; }
+
+    function refresh() {
+      var slug = (slugField && slugField.value) || '';
+      if (slug === '' && titleField) { slug = slugify(titleField.value); }
+      field.value = field.dataset.base + (slug || 'se-genera-del-titulo');
+    }
+
+    if (slugField) { slugField.addEventListener('input', refresh); }
+    if (titleField) { titleField.addEventListener('input', refresh); }
+
+    if (copy) {
+      copy.addEventListener('click', function () {
+        var done = function () {
+          var original = copy.textContent;
+          copy.textContent = copy.dataset.copied;
+          setTimeout(function () { copy.textContent = original; }, 1600);
+        };
+
+        // navigator.clipboard necesita contexto seguro; en http:// local no
+        // existe, así que queda la selección del campo como alternativa.
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(field.value).then(done);
+          return;
+        }
+
+        field.removeAttribute('readonly');
+        field.select();
+        field.setSelectionRange(0, field.value.length);
+        try { document.execCommand('copy'); done(); } catch (e) { /* queda seleccionado */ }
+        field.setAttribute('readonly', 'readonly');
+      });
+    }
+  })();
+
+  // ---- El botón dice lo que va a pasar: publicar o programar.
+  (function publishLabel() {
+    var btn = document.getElementById('publish-btn');
+    var date = document.getElementById('published_at');
+    if (!btn || !date) { return; }
+
+    function refresh() {
+      var when = new Date(date.value);
+      var future = !isNaN(when.getTime()) && when.getTime() > Date.now() + 60000;
+      btn.textContent = future ? btn.dataset.programar : btn.dataset.publicar;
+    }
+
+    date.addEventListener('input', refresh);
+    date.addEventListener('change', refresh);
+    refresh();
+  })();
+
   // ---- Slug sugerido a partir del título, solo si está vacío.
   var title = document.getElementById('title');
   var slug = document.getElementById('slug');
@@ -369,19 +431,23 @@
     '[' + String.fromCharCode(0x300) + '-' + String.fromCharCode(0x36f) + ']', 'g'
   );
 
+  function slugify(text) {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(COMBINING, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 120);
+  }
+
   if (title && slug) {
     var touched = slug.value !== '';
     slug.addEventListener('input', function () { touched = true; });
 
     title.addEventListener('input', function () {
       if (touched) { return; }
-      slug.value = title.value
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(COMBINING, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 120);
+      slug.value = slugify(title.value);
     });
   }
 })();

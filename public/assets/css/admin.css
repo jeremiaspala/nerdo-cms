@@ -560,3 +560,10 @@ textarea.in { resize: vertical; line-height: 1.6; }
 .pill-read { background: #eceff0; color: var(--ink-2); }
 .pill-archived { background: #eceff0; color: var(--ink-3); }
 .modmeta a { color: var(--accent); }
+.pill-scheduled { background: #e9eefb; color: #2f4d8a; }
+
+/* ---------- enlace copiable del editor ---------- */
+.copyrow { display: flex; gap: 6px; align-items: center; }
+.copyrow .in { flex: 1; min-width: 0; font-family: var(--mono); font-size: 11.5px; }
+.copyrow .btn { flex: 0 0 auto; }
+.head .sub .pill { margin-right: 6px; }
