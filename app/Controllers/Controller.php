@@ -69,6 +69,22 @@ abstract class Controller
     }
 
     /**
+     * Cuántas tarjetas trae una página de listado.
+     *
+     * Son siempre múltiplos de 12 porque la grilla usa 4, 3, 2 o 1 columnas
+     * según la pantalla, y 12 es divisible por todas: así la última fila
+     * nunca queda con huecos, en ningún tamaño de pantalla. Por eso el ajuste
+     * es una lista y no un número libre — con 10, que era el valor anterior,
+     * en una pantalla de cuatro columnas sobraban dos lugares.
+     */
+    protected function cardsPerPage(): int
+    {
+        $value = (int) $this->app->settings->get('posts_per_page', '12');
+
+        return in_array($value, [12, 24, 36], true) ? $value : 12;
+    }
+
+    /**
      * Las tres listas de la barra lateral.
      *
      * Son tres consultas por render, y solo se pagan cuando la página no está

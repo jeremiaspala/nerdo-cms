@@ -11,7 +11,8 @@ use App\Core\Response;
 
 final class ArchiveController extends Controller
 {
-    private const PER_PAGE = 30;
+    /** Múltiplo de 12, por lo mismo que el resto: la grilla cierra. */
+    private const PER_PAGE = 36;
 
     private const MESES = [
         1 => 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',

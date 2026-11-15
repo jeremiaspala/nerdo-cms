@@ -1,11 +1,30 @@
 <?php
 /**
- * Armazón del panel.
+ * Armazón del panel: barra lateral fija a la izquierda y el contenido al lado.
  *
  * Sin un solo script ni estilo en línea: la CSP no los admite y el panel no
- * es excepción. Todo el comportamiento vive en /assets/js/admin.js
+ * es excepción. Todo el comportamiento vive en /assets/js/admin.js, y los
+ * íconos son SVG en línea (ver app/Admin/icons.php): ni una tipografía de
+ * íconos ni un dominio de terceros.
  */
 /** @var array $user @var string $adminPath @var array $counts @var string $current */
+
+require_once dirname(__DIR__) . '/icons.php';
+
+$nav = [
+    ['dashboard', '', 'escritorio', 'Escritorio', null],
+    ['post', '/entradas', 'entradas', 'Entradas', (int) $counts['posts']],
+    ['page', '/paginas', 'paginas', 'Páginas', (int) $counts['pages']],
+    ['media', '/medios', 'medios', 'Medios', null],
+    ['comments', '/comentarios', 'comentarios', 'Comentarios', (int) ($counts['pending'] ?? 0)],
+    ['messages', '/mensajes', 'mensajes', 'Mensajes', (int) ($counts['messages'] ?? 0)],
+    ['analytics', '/analitica', 'analitica', 'Analítica', null],
+    ['settings', '/configuracion', 'configuracion', 'Configuración', null],
+];
+
+// Los dos primeros contadores son informativos; los otros dos avisan de algo
+// que hay que atender, y por eso se pintan distinto y desaparecen en cero.
+$alerts = ['comments', 'messages'];
 ?>
 <!doctype html>
 <html lang="es">
@@ -21,51 +40,48 @@
 </head>
 <body>
 
-<header class="topbar">
-  <a class="logo" href="<?= e($adminPath) ?>">Nerdo <span>CMS</span></a>
-  <nav class="topnav">
-    <a href="<?= e($adminPath) ?>" class="<?= $current === 'dashboard' ? 'on' : '' ?>">Escritorio</a>
-    <a href="<?= e($adminPath) ?>/entradas" class="<?= $current === 'post' ? 'on' : '' ?>">
-      Entradas <b><?= (int) $counts['posts'] ?></b>
-    </a>
-    <a href="<?= e($adminPath) ?>/paginas" class="<?= $current === 'page' ? 'on' : '' ?>">
-      Páginas <b><?= (int) $counts['pages'] ?></b>
-    </a>
-    <a href="<?= e($adminPath) ?>/medios" class="<?= $current === 'media' ? 'on' : '' ?>">Medios</a>
-    <a href="<?= e($adminPath) ?>/comentarios" class="<?= $current === 'comments' ? 'on' : '' ?>">
-      Comentarios
-      <?php if ((int) ($counts['pending'] ?? 0) > 0): ?>
-        <b class="badge-alert"><?= (int) $counts['pending'] ?></b>
-      <?php endif; ?>
-    </a>
-    <a href="<?= e($adminPath) ?>/mensajes" class="<?= $current === 'messages' ? 'on' : '' ?>">
-      Mensajes
-      <?php if ((int) ($counts['messages'] ?? 0) > 0): ?>
-        <b class="badge-alert"><?= (int) $counts['messages'] ?></b>
-      <?php endif; ?>
-    </a>
-    <a href="<?= e($adminPath) ?>/analitica"
-       class="<?= $current === 'analytics' ? 'on' : '' ?>">Analítica</a>
-    <a href="<?= e($adminPath) ?>/configuracion"
-       class="<?= $current === 'settings' ? 'on' : '' ?>">Configuración</a>
-  </nav>
-  <div class="topright">
-    <a class="viewsite" href="/" target="_blank" rel="noopener">Ver el sitio</a>
-    <span class="who"><?= e($user['name']) ?></span>
-    <form method="post" action="<?= e($adminPath) ?>/salir">
-      <?= $csrf ?>
-      <button class="linkbtn" type="submit">Salir</button>
-    </form>
+<div class="adminshell">
+
+  <aside class="sidebar">
+    <a class="logo" href="<?= e($adminPath) ?>">Nerdo <span>CMS</span></a>
+
+    <nav class="sidenav" aria-label="Secciones del panel">
+      <?php foreach ($nav as [$key, $path, $icon, $label, $count]): ?>
+        <?php $isAlert = in_array($key, $alerts, true); ?>
+        <a href="<?= e($adminPath . $path) ?>" class="<?= $current === $key ? 'on' : '' ?>">
+          <?= admin_icon($icon) ?>
+          <span class="sidelabel"><?= e($label) ?></span>
+          <?php if ($count !== null && ($count > 0 || !$isAlert)): ?>
+            <b class="<?= $isAlert ? 'badge-alert' : 'badge' ?>"><?= $count ?></b>
+          <?php endif; ?>
+        </a>
+      <?php endforeach; ?>
+    </nav>
+
+    <div class="sidefoot">
+      <a class="sidelink" href="/" target="_blank" rel="noopener">
+        <?= admin_icon('sitio') ?><span class="sidelabel">Ver el sitio</span>
+      </a>
+      <form method="post" action="<?= e($adminPath) ?>/salir">
+        <?= $csrf ?>
+        <button class="sidelink" type="submit">
+          <?= admin_icon('salir') ?><span class="sidelabel">Salir (<?= e($user['name']) ?>)</span>
+        </button>
+      </form>
+    </div>
+  </aside>
+
+  <div class="adminmain">
+    <?php if ($flash !== null): ?>
+      <p class="flash flash-<?= e($flash['type']) ?>"><?= e($flash['message']) ?></p>
+    <?php endif; ?>
+
+    <main class="shell">
+    <?= $content ?>
+    </main>
   </div>
-</header>
 
-<?php if ($flash !== null): ?>
-  <p class="flash flash-<?= e($flash['type']) ?>"><?= e($flash['message']) ?></p>
-<?php endif; ?>
-
-<main class="shell">
-<?= $content ?>
-</main>
+</div>
 
 <script src="<?= asset('/assets/js/admin.js') ?>" defer></script>
 <?php if (!empty($needsEditor)): ?>

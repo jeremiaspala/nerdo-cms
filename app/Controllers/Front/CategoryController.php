@@ -11,8 +11,6 @@ use App\Core\Response;
 
 final class CategoryController extends Controller
 {
-    private const PER_PAGE = 10;
-
     public function show(Request $request, string $slug): Response
     {
         $category = $this->categories->findBySlug($slug);
@@ -23,9 +21,10 @@ final class CategoryController extends Controller
 
         $page = $request->page();
         $total = $this->categories->countPublished((int) $category['id']);
-        $pages = max(1, (int) ceil($total / self::PER_PAGE));
+        $perPage = $this->cardsPerPage();
+        $pages = max(1, (int) ceil($total / $perPage));
 
-        $items = $this->posts->byCategory($slug, self::PER_PAGE, ($page - 1) * self::PER_PAGE);
+        $items = $this->posts->byCategory($slug, $perPage, ($page - 1) * $perPage);
         $this->app->analytics->record($request);
         $items = $this->posts->withCategories($items);
 

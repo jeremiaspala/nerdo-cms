@@ -11,19 +11,27 @@ use App\Core\Response;
 
 final class HomeController extends Controller
 {
-    private const PER_PAGE = 10;
-
     public function index(Request $request): Response
     {
+        // La primera página gasta una entrada en la destacada de arriba, así
+        // que pide una de más: si no, la grilla de abajo queda con un hueco
+        // justo en la página que ve todo el mundo.
+        $cards = $this->cardsPerPage();
+        $firstPage = $cards + 1;
+
         $page = $request->page();
         $total = $this->posts->countPublished();
-        $pages = max(1, (int) ceil($total / self::PER_PAGE));
+        $pages = $total <= $firstPage
+            ? 1
+            : 1 + (int) ceil(($total - $firstPage) / $cards);
 
         if ($page > $pages && $total > 0) {
             throw new NotFound();
         }
 
-        $items = $this->posts->published(self::PER_PAGE, ($page - 1) * self::PER_PAGE);
+        $items = $page === 1
+            ? $this->posts->published($firstPage)
+            : $this->posts->published($cards, $firstPage + ($page - 2) * $cards);
         $this->app->analytics->record($request);
 
         $items = $this->posts->withCategories($items);

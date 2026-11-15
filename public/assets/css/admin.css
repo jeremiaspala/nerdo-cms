@@ -54,31 +54,85 @@ textarea:focus-visible, select:focus-visible {
 }
 
 /* ---------- barra superior ---------- */
-.topbar {
-  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
-  background: var(--brand); color: #fff; padding: 0 20px;
+/* ---------- barra lateral ---------- */
+.adminshell {
+  display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 100vh;
 }
+
+.sidebar {
+  background: var(--brand); color: #9fcdc8;
+  display: flex; flex-direction: column; gap: 4px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+
 .logo {
   font-weight: 800; font-size: 15px; text-decoration: none; letter-spacing: -.01em;
-  padding: 13px 0;
+  color: #fff; padding: 17px 18px 15px;
 }
 .logo span { color: #5ee3d2; font-weight: 500; }
-.topnav { display: flex; gap: 2px; margin-right: auto; flex-wrap: wrap; }
-.topnav a {
-  padding: 13px 13px; font-size: 12.5px; font-weight: 600; text-decoration: none;
-  color: #9fcdc8; border-bottom: 3px solid transparent;
+
+.sidenav { display: flex; flex-direction: column; padding: 6px 10px; gap: 1px; }
+.sidenav a {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 11px; border-radius: 7px;
+  font-size: 13px; font-weight: 600; text-decoration: none; color: #9fcdc8;
+  border-left: 3px solid transparent;
 }
-.topnav a:hover { color: #fff; }
-.topnav a.on { color: #fff; border-bottom-color: #5ee3d2; }
-.topnav b {
-  font-weight: 600; font-size: 10.5px; background: rgba(255, 255, 255, .14);
-  border-radius: 9px; padding: 1px 6px; margin-left: 5px;
+.sidenav a:hover { background: rgba(255, 255, 255, .07); color: #fff; }
+
+/* La sección activa se marca con el color y con una barra a la izquierda: el
+   color solo no alcanza para quien no lo distingue. */
+.sidenav a.on {
+  background: rgba(255, 255, 255, .11); color: #fff; border-left-color: #5ee3d2;
 }
-.topright { display: flex; align-items: center; gap: 14px; font-size: 12.5px; }
-.topright form { margin: 0; }
-.viewsite { color: #9fcdc8; text-decoration: none; }
-.viewsite:hover { color: #fff; }
-.who { color: #9fcdc8; }
+.sidenav .ic { flex: 0 0 19px; opacity: .85; }
+.sidenav a.on .ic { opacity: 1; color: #5ee3d2; }
+.sidelabel { flex: 1; min-width: 0; }
+
+.badge, .badge-alert {
+  font-weight: 700; font-size: 10.5px; border-radius: 9px; padding: 1px 7px;
+  font-variant-numeric: tabular-nums;
+}
+.badge { background: rgba(255, 255, 255, .14); color: #cfe6e3; }
+.badge-alert { background: #e8b84b; color: #40300a; }
+
+.sidefoot {
+  margin-top: auto; padding: 10px; border-top: 1px solid rgba(255, 255, 255, .1);
+  display: flex; flex-direction: column; gap: 1px;
+}
+.sidefoot form { margin: 0; }
+.sidelink {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  padding: 9px 11px; border-radius: 7px; border: 0; background: none;
+  font: inherit; font-size: 12.5px; color: #9fcdc8; text-decoration: none;
+  cursor: pointer; text-align: left;
+}
+.sidelink:hover { background: rgba(255, 255, 255, .07); color: #fff; }
+
+.adminmain { min-width: 0; }
+
+/* Pantalla angosta: la barra pasa arriba, en una fila que se desplaza, y las
+   etiquetas se esconden. Quedan los íconos, que es justo para lo que están. */
+@media (max-width: 900px) {
+  .adminshell { grid-template-columns: minmax(0, 1fr); }
+  .sidebar {
+    position: static; height: auto; flex-direction: row; align-items: center;
+    gap: 0; padding-right: 6px;
+  }
+  .logo { padding: 14px 14px; flex: 0 0 auto; }
+  .sidenav {
+    flex-direction: row; overflow-x: auto; padding: 8px 4px; flex: 1;
+    scrollbar-width: thin;
+  }
+  .sidenav a { border-left: 0; border-bottom: 3px solid transparent; padding: 8px 10px; }
+  .sidenav a.on { border-left-color: transparent; border-bottom-color: #5ee3d2; }
+  .sidefoot {
+    margin-top: 0; border-top: 0; flex-direction: row; padding: 8px 4px; flex: 0 0 auto;
+  }
+  .sidelabel { display: none; }
+  .badge, .badge-alert { display: none; }
+  .badge-alert { display: inline-block; }
+}
 
 /* ---------- avisos ---------- */
 .flash {
@@ -88,7 +142,7 @@ textarea:focus-visible, select:focus-visible {
 .flash-error { background: #fdeceb; border-bottom-color: #f2c9c4; color: var(--danger); }
 
 /* ---------- estructura ---------- */
-.shell { max-width: 1240px; margin-inline: auto; padding: 26px 20px 60px; }
+.shell { max-width: 1400px; padding: 26px 30px 60px; }
 
 .head {
   display: flex; align-items: flex-start; justify-content: space-between;

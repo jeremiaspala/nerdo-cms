@@ -31,7 +31,12 @@ return [
                 'options' => ['suave' => 'Suave', 'medio' => 'Medio', 'fuerte' => 'Fuerte'],
                 'help' => 'Una sombra neutra sobre la franja izquierda del encabezado, que es donde va el texto. No tiñe la foto ni la tapa: del centro hacia la derecha se ve tal cual. Subilo solo si la imagen es clara y el título no se lee.',
             ],
-            'posts_per_page' => ['label' => 'Entradas por página', 'type' => 'number', 'default' => '10', 'min' => 3, 'max' => 50],
+            'posts_per_page' => [
+                'label' => 'Entradas por página',
+                'type' => 'select', 'default' => '12',
+                'options' => ['12' => '12', '24' => '24', '36' => '36'],
+                'help' => 'Son múltiplos de 12 a propósito: la grilla usa 4, 3, 2 o 1 columnas según el tamaño de la pantalla, y 12 es divisible por todas. Con otro número, la última fila queda con lugares vacíos en algunas pantallas. La portada suma una más para la entrada destacada.',
+            ],
         ],
     ],
 

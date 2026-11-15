@@ -249,10 +249,23 @@ main { min-width: 0; }
   margin-top: 12px;
 }
 
+/* Columnas fijas por tamaño de pantalla, no `auto-fill`.
+ *
+ * Con auto-fill la cantidad de columnas sale de una cuenta entre el ancho
+ * disponible y el mínimo de la tarjeta: puede dar 4 en una pantalla y 5 en
+ * otra, y entonces la última fila queda con huecos en algunas y completa en
+ * otras. Fijando 4 / 3 / 2 / 1 —todos divisores de 12, que es lo que trae
+ * cada página— la grilla cierra siempre, en cualquier pantalla.
+ *
+ * El único listado donde puede quedar una fila a medias es la búsqueda, que
+ * devuelve los resultados que haya y no un número redondo. */
 .grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 28px 26px; padding-block: 30px;
 }
+@media (max-width: 560px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+@media (min-width: 701px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1700px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .card h3 { font-size: 17px; font-weight: 700; letter-spacing: -.012em; margin: 10px 0 7px; }
 .card h3 a { text-decoration: none; }
 .card h3 a:hover { color: var(--accent); }

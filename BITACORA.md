@@ -413,3 +413,28 @@ categorías de a una entrada por vez (diez entradas, diez consultas) y la
 barra lateral iba a sumar quince más. `Post::withCategories()` las trae todas
 en una. Medido en la portada sin caché: 8,0 ms con la barra lateral incluida,
 contra 5,2 ms que costaba antes sin barra. Desde el caché, 1,7 ms.
+
+### 2026-11-14 (octava parte)
+
+**La grilla cierra en cualquier pantalla.** Con `auto-fill` la cantidad de
+columnas salía de una cuenta entre el ancho disponible y el mínimo de la
+tarjeta: daba 4 en una pantalla y 5 en otra, y la última fila quedaba con
+huecos. Ahora las columnas son fijas por tamaño —4, 3, 2 o 1— y la página
+trae múltiplos de 12, que es divisible por todas. La portada pide una de más
+porque gasta la primera en la destacada de arriba.
+
+De paso se arregló un ajuste que **no hacía nada**: `posts_per_page` existía
+en Configuración desde la fase 2 y los controladores usaban una constante.
+Ahora se usa de verdad, y pasó a ser una lista (12 / 24 / 36) en vez de un
+número libre, justamente para que la grilla siga cerrando.
+
+**El menú del panel pasó a una barra lateral izquierda con íconos.** Los
+íconos son SVG en línea dibujados en `app/Admin/icons.php`: una tipografía de
+íconos son 70 KB para usar diez glifos, y cualquier CDN de íconos es un
+dominio de terceros más en una CSP que hoy no tiene ninguno. Heredan el color
+del texto con `currentColor`, así que el estado activo no necesita reglas
+aparte. Abajo de 900 px la barra se convierte en una fila horizontal que se
+desplaza y quedan solo los íconos.
+
+La sección activa se marca con color **y** con una barra a la izquierda: el
+color solo no alcanza para quien no lo distingue.
