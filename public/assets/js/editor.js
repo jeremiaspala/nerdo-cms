@@ -1,111 +1,154 @@
 /**
- * Editor WYSIWYG.
+ * Editor por bloques.
  *
- * Quill arranca vacío y toma el HTML del <textarea>, que el servidor ya
- * escapó. Antes de enviar, se vuelca el contenido al mismo textarea.
+ * El editor lee los bloques de un <textarea> que el servidor ya escapó, y
+ * antes de enviar el formulario escribe ahí el JSON actualizado. No hay
+ * JavaScript en línea ni un JSON embebido en la página: la CSP no lo
+ * admitiría y tampoco hace falta.
  *
- * Importante: la lista de formatos de acá abajo es comodidad, NO seguridad.
- * Lo que de verdad decide qué HTML sobrevive es el saneador del servidor
- * (App\Services\HtmlSanitizer). Cualquiera puede mandar un POST sin pasar
- * por esta página.
+ * Importante: las herramientas que se habilitan acá abajo son comodidad, NO
+ * seguridad. Lo que decide qué HTML se publica es BlockRenderer, en el
+ * servidor, que emite solo los bloques que conoce. Cualquiera puede mandar
+ * un POST sin pasar por esta página.
  */
 (function () {
   'use strict';
 
   var host = document.getElementById('editor');
-  var field = document.getElementById('body_html');
+  var field = document.getElementById('body_blocks');
   var form = document.getElementById('editor-form');
 
-  if (!host || !field || !form || typeof Quill === 'undefined') {
+  if (!host || !field || !form || typeof EditorJS === 'undefined') {
     return;
   }
 
-  var quill = new Quill(host, {
-    theme: 'snow',
-    placeholder: 'Escribí acá…',
-    formats: [
-      'bold', 'italic', 'underline', 'strike',
-      'header', 'list', 'indent', 'align',
-      'blockquote', 'code-block', 'code',
-      'link', 'image'
-    ],
-    modules: {
-      toolbar: [
-        [{ header: [2, 3, 4, false] }],
-        ['bold', 'italic', 'underline', 'strike'],
-        [{ list: 'ordered' }, { list: 'bullet' }],
-        ['blockquote', 'code-block'],
-        ['link', 'image'],
-        [{ align: [] }],
-        ['clean']
-      ],
-      // Pegar desde Word o desde una web no debe arrastrar estilos.
-      clipboard: { matchVisual: false }
-    }
-  });
+  var initial = { blocks: [] };
 
-  // Insertar imagen: en vez del comportamiento por defecto de Quill, que
-  // mete la imagen como data: URI dentro del HTML (infla la base y la CSP
-  // lo bloquea), se sube al servidor y se inserta la URL del archivo.
-  var fbox = document.getElementById('featured-box');
-  var uploadEndpoint = fbox ? fbox.dataset.endpoint : null;
+  try {
+    var raw = field.value.trim();
+    if (raw !== '') { initial = JSON.parse(raw); }
+  } catch (e) {
+    // Un JSON roto no puede dejar a la persona sin editor: arranca vacío y
+    // el contenido viejo sigue en la base hasta que se guarde.
+    window.console && console.error('Bloques ilegibles, el editor arranca vacío.', e);
+  }
 
-  if (uploadEndpoint && typeof window.ncmsUpload === 'function') {
-    quill.getModule('toolbar').addHandler('image', function () {
-      var input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/jpeg,image/png,image/webp,image/gif';
-
-      input.addEventListener('change', function () {
-        var file = input.files[0];
-        if (!file) { return; }
-
-        var range = quill.getSelection(true);
-        quill.insertText(range.index, 'Subiendo imagen…', 'silent');
-
-        window.ncmsUpload(file, uploadEndpoint).then(function (m) {
-          quill.deleteText(range.index, 'Subiendo imagen…'.length, 'silent');
-          quill.insertEmbed(range.index, 'image', m.url, 'user');
-          quill.setSelection(range.index + 1, 0, 'silent');
-        }).catch(function (err) {
-          quill.deleteText(range.index, 'Subiendo imagen…'.length, 'silent');
-          quill.insertText(range.index, '[no se pudo subir: ' + err.message + ']', 'user');
-        });
+  /**
+   * Subida de imágenes: usa el mismo endpoint y el mismo token CSRF que la
+   * galería (ncmsUpload, en admin.js). La herramienta de imagen espera
+   * {success: 1, file: {url}}.
+   */
+  var uploader = {
+    uploadByFile: function (file) {
+      return window.ncmsUpload(file, host.dataset.upload).then(function (m) {
+        return { success: 1, file: { url: m.url, alt: m.alt || '' } };
+      }).catch(function (err) {
+        window.console && console.error(err);
+        return { success: 0 };
       });
+    }
+  };
 
-      input.click();
-    });
-  }
+  var editor = new EditorJS({
+    holder: host,
+    placeholder: 'Escribí acá, o apretá Tab para elegir un bloque…',
+    data: initial,
+    minHeight: 240,
 
-  // Carga inicial: el textarea trae el HTML guardado.
-  var initial = field.value.trim();
-  if (initial !== '') {
-    quill.clipboard.dangerouslyPasteHTML(initial, 'silent');
-  }
+    // El editor viene en inglés; esto es lo que se ve mientras se escribe.
+    i18n: {
+      messages: {
+        ui: {
+          blockTunes: { toggler: { 'Click to tune': 'Opciones del bloque' } },
+          inlineToolbar: { converter: { 'Convert to': 'Convertir en' } },
+          toolbar: { toolbox: { Add: 'Agregar' } },
+          popover: { Filter: 'Buscar', 'Nothing found': 'No hay nada con ese nombre' }
+        },
+        toolNames: {
+          Text: 'Párrafo',
+          Heading: 'Título',
+          List: 'Lista',
+          Quote: 'Cita',
+          Code: 'Código',
+          Image: 'Imagen',
+          Embed: 'Video',
+          Delimiter: 'Separador',
+          Table: 'Tabla',
+          Link: 'Enlace',
+          InlineCode: 'Código en línea',
+          Bold: 'Negrita',
+          Italic: 'Itálica'
+        },
+        blockTunes: {
+          delete: { Delete: 'Borrar', 'Click to delete': 'Confirmar' },
+          moveUp: { 'Move up': 'Subir' },
+          moveDown: { 'Move down': 'Bajar' }
+        }
+      }
+    },
 
-  function sync() {
-    var html = quill.getSemanticHTML().trim();
-    // Quill devuelve un párrafo vacío cuando no hay nada escrito.
-    field.value = (html === '<p></p>' || html === '<p><br></p>') ? '' : html;
-  }
-
-  form.addEventListener('submit', sync);
-
-  // Ctrl/Cmd + S guarda como borrador en lugar de abrir el diálogo del navegador.
-  document.addEventListener('keydown', function (ev) {
-    if ((ev.ctrlKey || ev.metaKey) && ev.key === 's') {
-      ev.preventDefault();
-      sync();
-      var draft = form.querySelector('button[value="draft"]');
-      if (draft) { draft.click(); }
+    tools: {
+      header: {
+        class: Header,
+        inlineToolbar: true,
+        config: {
+          placeholder: 'Título',
+          // h1 es el título de la entrada: el cuerpo empieza en h2.
+          levels: [2, 3, 4],
+          defaultLevel: 2
+        }
+      },
+      list: { class: EditorjsList, inlineToolbar: true, config: { defaultStyle: 'unordered' } },
+      quote: { class: Quote, inlineToolbar: true, config: { quotePlaceholder: 'Cita', captionPlaceholder: 'Quién lo dijo' } },
+      code: { class: CodeTool, config: { placeholder: 'Código' } },
+      image: {
+        class: ImageTool,
+        config: {
+          uploader: uploader,
+          captionPlaceholder: 'Pie de imagen (opcional)',
+          buttonContent: 'Elegir una imagen'
+        }
+      },
+      embed: {
+        class: Embed,
+        config: {
+          // Los mismos dos de siempre: son los únicos que admite la CSP y el
+          // renderizador del servidor.
+          services: { youtube: true, vimeo: true }
+        }
+      },
+      inlineCode: { class: InlineCode, shortcut: 'CMD+SHIFT+C' },
+      delimiter: Delimiter,
+      table: { class: Table, inlineToolbar: true, config: { withHeadings: true } }
     }
   });
 
-  // Aviso al salir con cambios sin guardar.
-  var dirty = false;
-  quill.on('text-change', function () { dirty = true; });
-  form.addEventListener('submit', function () { dirty = false; });
-  window.addEventListener('beforeunload', function (ev) {
-    if (dirty) { ev.preventDefault(); ev.returnValue = ''; }
+  // El envío espera a que el editor termine de serializar. Sin esto, el
+  // formulario puede salir con el JSON de antes del último cambio.
+  var ready = false;
+
+  form.addEventListener('submit', function (ev) {
+    if (ready) { return; }
+
+    ev.preventDefault();
+    var button = ev.submitter;
+
+    editor.save().then(function (data) {
+      field.value = JSON.stringify(data);
+      ready = true;
+
+      // Se reenvía apretando el mismo botón, porque el nombre y el valor del
+      // botón (status=draft o published) son parte de lo que se manda.
+      if (button) { button.click(); } else { form.submit(); }
+    }).catch(function (err) {
+      window.console && console.error(err);
+      ready = false;
+
+      var aviso = document.getElementById('editor-error');
+      if (aviso) {
+        aviso.textContent = 'No se pudo leer el contenido del editor. Copiá lo que escribiste antes de recargar.';
+        aviso.hidden = false;
+      }
+    });
   });
 })();

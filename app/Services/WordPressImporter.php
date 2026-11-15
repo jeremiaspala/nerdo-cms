@@ -189,6 +189,11 @@ final class WordPressImporter
             'reading_minutes' => HtmlSanitizer::readingMinutes($text),
             'word_count' => count(preg_split('/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: []),
             'comments_open' => 1,
+            // La fecha de modificación real de WordPress. Sin esto, todas
+            // las entradas quedan «actualizadas» el día de la importación:
+            // en el sitio, en el dateModified del JSON-LD y en el lastmod
+            // del sitemap, que es donde más caro sale.
+            'updated_at' => (string) $row['post_modified'],
         ];
 
         $existing = $this->app->db->first(

@@ -57,6 +57,7 @@ abstract class AdminController
             'adminPath' => $this->app->adminPath,
             // Para armar el enlace público de una entrada desde el editor.
             'siteUrl' => rtrim($this->app->env->get('APP_URL', '') ?? '', '/'),
+            'nonce' => $this->app->security->nonce,
             'csrf' => $this->app->csrf->field(),
             'flash' => $this->app->session->takeFlash(),
             'counts' => [

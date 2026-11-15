@@ -9,6 +9,7 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Models\Media;
 use App\Models\Post;
+use App\Services\BlockRenderer;
 use App\Services\HtmlSanitizer;
 
 /**
@@ -59,6 +60,7 @@ final class ContentController extends AdminController
                 'slug' => '',
                 'excerpt' => '',
                 'body_html' => '',
+                'body_blocks' => '',
                 'status' => Post::STATUS_DRAFT,
                 'published_at' => date('Y-m-d H:i'),
                 'meta_title' => '',
@@ -110,9 +112,12 @@ final class ContentController extends AdminController
             return $this->back($this->listPath($type), 'El título no puede quedar vacío.', 'error');
         }
 
-        // ---- El saneado: única barrera real contra lo que mande el editor.
-        $sanitizer = new HtmlSanitizer($this->app->root . '/storage/cache/purifier');
-        $bodyHtml = $sanitizer->post($request->postRaw('body_html'));
+        // ---- El contenido llega como bloques y el HTML lo emite el
+        //      servidor. La diferencia con el editor anterior no es de
+        //      comodidad: antes había que decidir qué sobrevivía de un HTML
+        //      que venía de afuera; ahora se renderiza una lista cerrada de
+        //      bloques y lo que no está contemplado no se escribe.
+        [$blocks, $bodyHtml] = $this->renderBlocks($request->postRaw('body_blocks'));
         $bodyText = HtmlSanitizer::toText($bodyHtml);
 
         $status = $request->post('status') === Post::STATUS_PUBLISHED
@@ -130,6 +135,7 @@ final class ContentController extends AdminController
             'title' => $title,
             'excerpt' => mb_substr($excerpt, 0, 500),
             'body_html' => $bodyHtml,
+            'body_blocks' => $blocks,
             'body_text' => $bodyText,
             'status' => $status,
             'published_at' => $status === Post::STATUS_PUBLISHED ? $publishedAt : null,
@@ -237,6 +243,39 @@ final class ContentController extends AdminController
     }
 
     // ------------------------------------------------------------------
+
+    /**
+     * Lee los bloques que mandó el editor y devuelve [json, html].
+     *
+     * El JSON se vuelve a serializar desde la estructura ya decodificada: lo
+     * que se guarda es lo que el servidor entendió, no la cadena que llegó.
+     * Así no queda en la base nada que el renderizador no haya mirado.
+     *
+     * @return array{0:?string,1:string}
+     */
+    private function renderBlocks(string $raw): array
+    {
+        if (trim($raw) === '') {
+            return [null, ''];
+        }
+
+        try {
+            $data = json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return [null, ''];
+        }
+
+        if (!is_array($data) || !is_array($data['blocks'] ?? null)) {
+            return [null, ''];
+        }
+
+        $html = (new BlockRenderer())->render($data);
+
+        return [
+            json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            $html,
+        ];
+    }
 
     private function validMediaId(int $id): ?int
     {

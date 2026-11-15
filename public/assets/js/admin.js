@@ -359,6 +359,80 @@
     refresh();
   })();
 
+  // ---- Agregar una categoría sin salir de la entrada.
+  (function nuevaCategoria() {
+    var caja = document.querySelector('.catnew');
+    if (!caja) { return; }
+
+    var campo = document.getElementById('cat-nueva');
+    var boton = document.getElementById('cat-agregar');
+    var aviso = document.getElementById('cat-aviso');
+    var lista = document.querySelector('.catlist');
+
+    function decir(texto, esError) {
+      aviso.textContent = texto;
+      aviso.classList.toggle('hint-warn', !!esError);
+      aviso.hidden = false;
+    }
+
+    function agregar() {
+      var nombre = campo.value.trim();
+      if (nombre === '') { return; }
+
+      boton.disabled = true;
+
+      var datos = new FormData();
+      datos.append('_token', csrfToken());
+      datos.append('nombre', nombre);
+
+      fetch(caja.dataset.endpoint, { method: 'POST', body: datos, credentials: 'same-origin' })
+        .then(function (res) { return res.json().then(function (j) { return { ok: res.ok, j: j }; }); })
+        .then(function (r) {
+          boton.disabled = false;
+
+          if (!r.ok) { decir(r.j.error || 'No se pudo crear.', true); return; }
+
+          var yaEsta = lista.querySelector('input[value="' + r.j.id + '"]');
+
+          if (yaEsta) {
+            yaEsta.checked = true;
+            decir('«' + r.j.name + '» ya existía: quedó marcada.');
+          } else {
+            var etiqueta = document.createElement('label');
+            etiqueta.className = 'chk';
+
+            var casilla = document.createElement('input');
+            casilla.type = 'checkbox';
+            casilla.name = 'categories[]';
+            casilla.value = r.j.id;
+            casilla.checked = true;
+
+            etiqueta.appendChild(casilla);
+            etiqueta.appendChild(document.createTextNode(' ' + r.j.name));
+            lista.appendChild(etiqueta);
+
+            var vacio = document.getElementById('cat-vacio');
+            if (vacio) { vacio.remove(); }
+
+            decir('Agregada. Se guarda con la entrada.');
+          }
+
+          campo.value = '';
+        })
+        .catch(function () {
+          boton.disabled = false;
+          decir('Se cortó la conexión.', true);
+        });
+    }
+
+    boton.addEventListener('click', agregar);
+
+    // Enter en el campo agrega la categoría, no envía la entrada entera.
+    campo.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); agregar(); }
+    });
+  })();
+
   // ---- Enlace público: copiar, y mantenerlo al día con el slug.
   //
   // Es el enlace que se pega en el programador de LinkedIn o Instagram antes

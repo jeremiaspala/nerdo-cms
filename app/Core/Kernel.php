@@ -156,6 +156,7 @@ final class Kernel
             ->post("#^{$a}/(entradas|paginas)/guardar$#", [Admin\ContentController::class, 'save'])
             ->post("#^{$a}/(entradas|paginas)/papelera$#", [Admin\ContentController::class, 'trash'])
             ->post("#^{$a}/(entradas|paginas)/restaurar$#", [Admin\ContentController::class, 'restore'])
+            ->post("#^{$a}/categorias/crear$#", [Admin\CategoriesController::class, 'create'])
             ->get("#^{$a}/medios$#", [Admin\MediaController::class, 'index'])
             ->post("#^{$a}/medios/subir$#", [Admin\MediaController::class, 'upload'])
             ->post("#^{$a}/medios/alt$#", [Admin\MediaController::class, 'updateAlt'])

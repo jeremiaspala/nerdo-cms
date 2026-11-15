@@ -567,3 +567,25 @@ textarea.in { resize: vertical; line-height: 1.6; }
 .copyrow .in { flex: 1; min-width: 0; font-family: var(--mono); font-size: 11.5px; }
 .copyrow .btn { flex: 0 0 auto; }
 .head .sub .pill { margin-right: 6px; }
+
+/* ---------- editor por bloques ---------- */
+.blocks-host {
+  background: var(--paper); border: 1px solid var(--line); border-radius: 8px;
+  padding: 14px 10px 40px; min-height: 320px;
+}
+.blocks-host:focus-within { border-color: var(--accent); }
+/* El editor dibuja su columna con un ancho fijo pensado para su demo. */
+.blocks-host .codex-editor__redactor { padding-bottom: 120px !important; }
+.blocks-host .ce-block__content,
+.blocks-host .ce-toolbar__content { max-width: none; margin-inline: 10px 46px; }
+.blocks-host .ce-paragraph, .blocks-host .cdx-block { font-size: 15px; line-height: 1.7; }
+.blocks-host .ce-header { font-family: var(--sans); font-weight: 800; letter-spacing: -.015em; }
+.blocks-host h2.ce-header { font-size: 22px; }
+.blocks-host h3.ce-header { font-size: 18px; }
+.blocks-host h4.ce-header { font-size: 16px; }
+.blocks-host .cdx-quote__text { min-height: 0; }
+.blocks-host .ce-code__textarea { font-family: var(--mono); font-size: 12.5px; }
+
+/* ---------- categoría nueva desde el editor ---------- */
+.catnew { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.catnew .lbl { margin-bottom: 5px; }

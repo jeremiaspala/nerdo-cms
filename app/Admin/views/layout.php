@@ -33,7 +33,14 @@ $alerts = ['comments', 'messages'];
 <title><?= e($pageTitle ?? 'Panel') ?> · Nerdo CMS</title>
 <link rel="stylesheet" href="<?= asset('/assets/css/admin.css') ?>">
 <?php if (!empty($needsEditor)): ?>
-  <link rel="stylesheet" href="<?= asset('/assets/vendor/quill/quill.snow.css') ?>">
+  <link rel="stylesheet" href="<?= asset('/assets/vendor/editorjs/editorjs.css') ?>">
+  <?php /* Editor.js inyecta dos hojas de estilo creando <style> desde
+           JavaScript, y la CSP sin unsafe-inline las bloquea. Su propio
+           loadStyles() arranca con «si ya existe este id, no hago nada», así
+           que estos dos <style> vacíos —con nonce, que la CSP sí admite— le
+           avisan que no haga falta. El CSS está en editorjs.css. */ ?>
+  <style id="editor-js-styles" nonce="<?= e($nonce) ?>"></style>
+  <style id="codex-tooltips-style" nonce="<?= e($nonce) ?>"></style>
 <?php endif; ?>
 </head>
 <body>
@@ -83,7 +90,14 @@ $alerts = ['comments', 'messages'];
 
 <script src="<?= asset('/assets/js/admin.js') ?>" defer></script>
 <?php if (!empty($needsEditor)): ?>
-  <script src="<?= asset('/assets/vendor/quill/quill.js') ?>" defer></script>
+  <?php /* Núcleo primero y después las herramientas; los defer se ejecutan
+           en orden. Nada de esto lo carga el sitio público. */ ?>
+  <?php foreach ([
+      'editorjs', 'header', 'list', 'quote', 'code', 'image', 'embed', 'delimiter', 'table',
+      'inline-code',
+  ] as $tool): ?>
+    <script src="<?= asset('/assets/vendor/editorjs/' . $tool . '.umd.js') ?>" defer></script>
+  <?php endforeach; ?>
   <script src="<?= asset('/assets/js/editor.js') ?>" defer></script>
 <?php endif; ?>
 </body>

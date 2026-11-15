@@ -187,6 +187,94 @@ try {
             }
             break;
 
+        case 'blocks:migrate':
+            // Pasa el HTML de las entradas al editor por bloques.
+            //
+            // No toca `body_html`: lo que está publicado sigue como está, y
+            // se regenera a partir de los bloques recién la próxima vez que
+            // se guarde la entrada. Así una conversión que salga torcida se
+            // ve en el panel antes de llegar al sitio.
+            $dry = in_array('--dry-run', $args, true);
+            $soloId = (int) opt($args, 'id', '0');
+
+            $sql = 'SELECT id, type, slug, title, body_html FROM posts';
+            $params = [];
+
+            if ($soloId > 0) {
+                $sql .= ' WHERE id = :id';
+                $params['id'] = $soloId;
+            } elseif (!in_array('--rehacer', $args, true)) {
+                $sql .= ' WHERE body_blocks IS NULL';
+            }
+
+            $rows = $app->db->select($sql . ' ORDER BY id', $params);
+
+            $conv = new App\Services\HtmlToBlocks();
+            $render = new App\Services\BlockRenderer();
+
+            $hechas = 0;
+            $distintas = 0;
+            $vacias = 0;
+            $desconocidos = [];
+
+            foreach ($rows as $row) {
+                $blocks = $conv->convert((string) $row['body_html']);
+
+                foreach ($conv->desconocidos as $d) {
+                    $desconocidos[$d] = ($desconocidos[$d] ?? 0) + 1;
+                }
+
+                $original = App\Services\HtmlSanitizer::toText((string) $row['body_html']);
+                $vuelta = App\Services\HtmlSanitizer::toText($render->render($blocks));
+
+                // Se compara el texto, no el HTML: lo que no puede perderse
+                // es lo que lee una persona. Las diferencias de etiquetas son
+                // esperables —el editor normaliza— y no importan.
+                $normal = static fn (string $t): string => preg_replace('/\s+/u', ' ', mb_strtolower(trim($t))) ?? '';
+
+                if ($blocks['blocks'] === [] && trim((string) $row['body_html']) !== '') {
+                    $vacias++;
+                    out(sprintf('  VACÍA   #%-4d %s', $row['id'], mb_substr((string) $row['title'], 0, 60)));
+                } elseif ($normal($original) !== $normal($vuelta)) {
+                    $distintas++;
+                    out(sprintf('  DIFIERE #%-4d %s', $row['id'], mb_substr((string) $row['title'], 0, 60)));
+                    out(sprintf('          %d caracteres antes, %d después',
+                        mb_strlen($normal($original)), mb_strlen($normal($vuelta))));
+                }
+
+                if (!$dry) {
+                    // `updated_at = updated_at` a propósito: la columna es
+                    // ON UPDATE CURRENT_TIMESTAMP y convertir a bloques no es
+                    // modificar la entrada. Sin esto, las 171 quedan como
+                    // «actualizadas hoy» en el sitio, en el JSON-LD y en el
+                    // sitemap.
+                    $app->db->run('UPDATE posts SET body_blocks = :b, updated_at = updated_at WHERE id = :id', [
+                        'b' => json_encode($blocks, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                        'id' => (int) $row['id'],
+                    ]);
+                }
+
+                $hechas++;
+            }
+
+            out('');
+            out(sprintf('%s %d entrada(s) · %d con el texto distinto · %d sin bloques',
+                $dry ? 'Se convertirían' : 'Convertidas:', $hechas, $distintas, $vacias));
+
+            if ($desconocidos !== []) {
+                arsort($desconocidos);
+                out('Etiquetas que no se convirtieron (se conservó el texto de adentro):');
+                foreach ($desconocidos as $tag => $n) {
+                    out(sprintf('  %-28s %d', $tag, $n));
+                }
+            }
+
+            if ($dry) {
+                out('');
+                out('Fue un ensayo: no se escribió nada. Sacá --dry-run para aplicarlo.');
+            }
+            break;
+
         case 'cache:clear':
             $n = $app->pages->purgeAll();
             out("Caché de página vaciado: {$n} archivo(s).");
@@ -263,6 +351,7 @@ try {
             out('  cache:clear      vacía el caché de página');
             out('  cache:stats      qué hay guardado y con qué antigüedad');
             out('  cache:refresh    [--minutes=15] vacía si se publicó algo programado');
+            out('  blocks:migrate   [--dry-run] [--rehacer] [--id=N] HTML -> bloques');
             out('  routes           lista las rutas');
     }
 } catch (Throwable $e) {

@@ -37,6 +37,42 @@ final class Category
         );
     }
 
+    /**
+     * Crea una categoría y devuelve la fila.
+     *
+     * Si ya existe una con el mismo slug, devuelve esa en vez de fallar: dos
+     * categorías que se llaman igual no le sirven a nadie, y desde el editor
+     * lo esperable es «ponela si no está».
+     *
+     * @return array{id:int,slug:string,name:string,nueva:bool}
+     */
+    public function create(string $name): array
+    {
+        $name = trim(preg_replace('/\s+/u', ' ', $name) ?? '');
+        $slug = slugify($name, 80);
+
+        $existing = $this->db->first(
+            'SELECT id, slug, name FROM categories WHERE slug = :slug',
+            ['slug' => $slug]
+        );
+
+        if ($existing !== null) {
+            return [
+                'id' => (int) $existing['id'],
+                'slug' => (string) $existing['slug'],
+                'name' => (string) $existing['name'],
+                'nueva' => false,
+            ];
+        }
+
+        $id = $this->db->insert('categories', [
+            'slug' => $slug,
+            'name' => mb_substr($name, 0, 80),
+        ]);
+
+        return ['id' => $id, 'slug' => $slug, 'name' => mb_substr($name, 0, 80), 'nueva' => true];
+    }
+
     public function countPublished(int $categoryId): int
     {
         return (int) $this->db->value(

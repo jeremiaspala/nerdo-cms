@@ -47,8 +47,14 @@ $verPrefijo = $type === 'page' ? '/p/' : '/';
              value="<?= e($post['title']) ?>" placeholder="Título de la entrada">
 
       <label class="lbl" for="editor">Contenido</label>
-      <div id="editor" class="quill-host"></div>
-      <textarea id="body_html" name="body_html" hidden><?= e($post['body_html']) ?></textarea>
+      <?php /* El editor lee los bloques de acá y los vuelve a escribir antes
+               de enviar. Si la entrada todavía no se convirtió, el campo va
+               vacío y el editor arranca en blanco: por eso la conversión
+               (`php bin/console blocks:migrate`) corre antes de usar esto. */ ?>
+      <div id="editor" class="blocks-host"
+           data-upload="<?= e($adminPath) ?>/medios/subir"></div>
+      <textarea id="body_blocks" name="body_blocks" hidden><?= e((string) ($post['body_blocks'] ?? '')) ?></textarea>
+      <p class="flash flash-error flash-inline" id="editor-error" role="alert" hidden></p>
 
       <label class="lbl" for="excerpt">Extracto</label>
       <textarea class="in" id="excerpt" name="excerpt" rows="3" maxlength="500"
@@ -160,8 +166,22 @@ $verPrefijo = $type === 'page' ? '/p/' : '/';
               </label>
             <?php endforeach; ?>
             <?php if ($allCategories === []): ?>
-              <p class="hint">Todavía no hay categorías.</p>
+              <p class="hint" id="cat-vacio">Todavía no hay categorías.</p>
             <?php endif; ?>
+          </div>
+
+          <?php /* Crear una categoría sin salir de la entrada. Queda marcada
+                   sola: si la acabás de escribir es porque la vas a usar.
+                   No es un <form> anidado —no existe tal cosa en HTML—: es
+                   un campo y un botón que mandan un fetch. */ ?>
+          <div class="catnew" data-endpoint="<?= e($adminPath) ?>/categorias/crear">
+            <label class="lbl" for="cat-nueva">Agregar una categoría</label>
+            <div class="copyrow">
+              <input class="in in-sm" type="text" id="cat-nueva" maxlength="80"
+                     placeholder="Nombre de la categoría" autocomplete="off">
+              <button class="btn btn-sm btn-ghost" type="button" id="cat-agregar">Agregar</button>
+            </div>
+            <p class="hint" id="cat-aviso" hidden></p>
           </div>
         </section>
       <?php endif; ?>
