@@ -16,5 +16,8 @@
 # (correos de quienes comentaron). No van al repositorio.
 /storage/import/
 
+# Respaldos: la base entera. Menos que nunca.
+/storage/backups/
+
 /vendor/
 *.log

@@ -73,7 +73,7 @@ apuntando fuera de la aplicación.
 
 Otros comandos: `migrate:status`, `user:create`, `gc`, `routes`,
 `analytics:aggregate`, `analytics:summary`, `cache:clear`, `cache:stats`,
-`cache:refresh`.
+`cache:refresh`, `audit:purge`, `backup`.
 
 ### Cron
 
@@ -88,7 +88,39 @@ Otros comandos: `migrate:status`, `user:create`, `gc`, `routes`,
 # dispara ninguna invalidación: sin esto, la portada cacheada la seguiría
 # ocultando hasta que venza el TTL. Solo vacía si hubo algo que publicar.
 */15 * * * * cd /var/www/nerdadas && php bin/console cache:refresh --minutes=15
+
+# Respaldo de la base y de las imágenes, y copia afuera. Lo segundo no es
+# opcional: un respaldo en el mismo disco que el sitio no sobrevive al día
+# en que se pierde el disco.
+10 2 * * *  cd /var/www/nerdadas && php bin/console backup --keep=14
+40 2 * * *  rsync -a /var/www/nerdadas/storage/backups/ respaldo:/nerdadas/
 ```
+
+### Respaldo
+
+```
+php bin/console backup [--dir=...] [--keep=14]
+```
+
+Deja en `storage/backups/` —fuera del `DocumentRoot`, en 0600— un
+`base-FECHA.sql.gz` con `--single-transaction`, así que es consistente y no
+bloquea el sitio mientras corre, y un `uploads-FECHA.tar.gz` con las
+imágenes. Borra lo más viejo que `--keep` días.
+
+La contraseña de la base no va por la línea de comandos, donde `ps` la
+mostraría a cualquier usuario de la máquina, sino por un archivo de opciones
+en 0600 que se borra al terminar.
+
+Restaurar:
+
+```sh
+zcat base-2026-11-15_003343.sql.gz | mysql nerdo_cms
+tar -xzf uploads-2026-11-15_003343.tar.gz -C /var/www/nerdadas/public
+```
+
+El `.env` no está en el respaldo y tampoco en el repositorio: la `APP_KEY` va
+guardada aparte. Sin ella, los secretos de la base —SMTP, Google, TOTP— son
+bytes sin sentido.
 
 ## Analítica sin banner de cookies
 

@@ -305,6 +305,103 @@ try {
             }
             break;
 
+        case 'backup':
+            /*
+             * Respaldo de la base y de las imágenes.
+             *
+             * Va a storage/, que está fuera del DocumentRoot: un respaldo
+             * alcanzable por web es la base entera servida a quien la pida.
+             *
+             * La contraseña no viaja por la línea de comandos —`ps` la
+             * mostraría a cualquier usuario de la máquina— sino por un
+             * archivo de opciones en 0600 que se borra al terminar.
+             */
+            $dsn = $app->env->require('DB_DSN');
+
+            preg_match('/dbname=([^;]+)/', $dsn, $m);
+            $base = $m[1] ?? '';
+            preg_match('/host=([^;]+)/', $dsn, $m);
+            $host = $m[1] ?? '127.0.0.1';
+
+            if ($base === '') {
+                throw new RuntimeException('No pude leer dbname del DB_DSN.');
+            }
+
+            $dir = rtrim((string) opt($args, 'dir', ROOT . '/storage/backups'), '/');
+
+            if (!is_dir($dir) && !mkdir($dir, 0o700, true)) {
+                throw new RuntimeException("No pude crear {$dir}.");
+            }
+
+            @chmod($dir, 0o700);
+
+            $sello = date('Y-m-d_His');
+            $sql = "{$dir}/base-{$sello}.sql.gz";
+            $tar = "{$dir}/uploads-{$sello}.tar.gz";
+
+            $conf = tempnam(sys_get_temp_dir(), 'ncms');
+
+            if ($conf === false) {
+                throw new RuntimeException('No pude crear el archivo de opciones.');
+            }
+
+            try {
+                chmod($conf, 0o600);
+                file_put_contents($conf, "[client]\nuser=" . $app->env->require('DB_USER')
+                    . "\npassword=\"" . str_replace('"', '\"', (string) $app->env->get('DB_PASS', '')) . "\"\n"
+                    . "host={$host}\n");
+
+                $cmd = 'mysqldump --defaults-extra-file=' . escapeshellarg($conf)
+                    // --single-transaction: dump consistente sin bloquear el
+                    // sitio mientras se hace.
+                    . ' --single-transaction --quick --default-character-set=utf8mb4'
+                    . ' ' . escapeshellarg($base)
+                    . ' | gzip -9 > ' . escapeshellarg($sql);
+
+                exec('/bin/sh -c ' . escapeshellarg($cmd) . ' 2>&1', $salida, $estado);
+
+                if ($estado !== 0) {
+                    @unlink($sql);
+                    throw new RuntimeException("mysqldump falló: " . implode(' ', $salida));
+                }
+            } finally {
+                @unlink($conf);
+            }
+
+            @chmod($sql, 0o600);
+            out('Base: ' . basename($sql) . ' (' . number_format(filesize($sql) / 1048576, 1) . ' MB)');
+
+            if (is_dir(ROOT . '/public/uploads')) {
+                exec('tar -czf ' . escapeshellarg($tar)
+                    . ' -C ' . escapeshellarg(ROOT . '/public') . ' uploads 2>&1', $salida, $estado);
+
+                if ($estado !== 0) {
+                    throw new RuntimeException('tar falló: ' . implode(' ', $salida));
+                }
+
+                @chmod($tar, 0o600);
+                out('Imágenes: ' . basename($tar) . ' (' . number_format(filesize($tar) / 1048576, 1) . ' MB)');
+            }
+
+            // Rotación. Sin esto el disco se llena y el respaldo deja de
+            // correr justo cuando hace falta.
+            $guardar = max(1, (int) opt($args, 'keep', '14'));
+            $corte = time() - ($guardar * 86400);
+            $viejos = 0;
+
+            foreach (glob("{$dir}/{base,uploads}-*.{sql,tar}.gz", GLOB_BRACE) ?: [] as $f) {
+                if (filemtime($f) < $corte) {
+                    unlink($f);
+                    $viejos++;
+                }
+            }
+
+            out("Rotación: se guardan {$guardar} días · {$viejos} archivo(s) viejo(s) borrados.");
+            out('');
+            out('Esto deja el respaldo en el mismo disco que el sitio. Copialo afuera:');
+            out('  rsync -a ' . $dir . '/ otro-lugar:/respaldos/nerdadas/');
+            break;
+
         case 'audit:purge':
             $dias = max(30, (int) opt($args, 'days', '180'));
             $n = (new App\Models\AuditLog($app->db))->purge($dias);
@@ -391,6 +488,7 @@ try {
             out('  cache:refresh    [--minutes=15] vacía si se publicó algo programado');
             out('  blocks:migrate   [--dry-run] [--rehacer] [--id=N] HTML -> bloques');
             out('  audit:purge      [--days=180] limpia la bitácora vieja');
+            out('  backup           [--dir=] [--keep=14] base + imágenes a storage/backups');
             out('  routes           lista las rutas');
     }
 } catch (Throwable $e) {

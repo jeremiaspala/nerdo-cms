@@ -78,6 +78,12 @@ http://localhost:8080/comentarios/google/vuelta
    Con los permisos que pide el CMS —`openid`, `email`, `profile`— no hace
    falta que Google verifique la app.
 
+   La política de privacidad ya está escrita: **`/p/privacidad`**, creada
+   como borrador el 15/11/2026. Hay que leerla, publicarla y pasarle esa URL
+   a Google. Describe lo que el CMS hace de verdad (HMAC de IP y de correo,
+   30 días de detalle de visitas, 180 de bitácora de accesos); si algo de eso
+   cambia, la página también.
+
 3. **Volver a cargar el ID y el secreto** en el panel de producción
    (Configuración → Google): el `.env` de producción tiene otra `APP_KEY`,
    y el secreto está cifrado con la de acá, así que no se puede copiar la
@@ -129,10 +135,28 @@ Rango: 2011-10-14 → 2026-11-14.
 
 ## Próximos pasos, en orden
 
-### 1. Despliegue
+Está todo hecho menos lo que no se puede hacer desde localhost. Queda esto:
 
-Recién cuando lo anterior esté. El sitio nuevo en un subdominio, los dos
-conviviendo unos días, comparar peticiones y errores, y después mover el DNS.
+### 1. Leer y publicar `/p/privacidad`
+
+Está como borrador. Es un texto sobre el sitio de Jeremías, así que lo tiene
+que leer él antes de que sea público. Sin esa página publicada en el dominio
+real no se puede publicar la app de Google, y sin publicar la app solo
+comentan con Google las cuentas de la lista de prueba.
+
+### 2. Despliegue
+
+El sitio nuevo en un subdominio, los dos conviviendo unos días, comparar
+peticiones y errores, y después mover el DNS.
+
+Antes de mover el DNS, las tres cosas de Google OAuth del bloque de arriba, y
+el cron completo del README —incluido `backup`, que es el único que no se
+puede probar de verdad hasta que haya un segundo lugar donde copiar—.
+
+### 3. Primer respaldo verificado
+
+Correr `php bin/console backup`, llevarse el `.sql.gz` a otra máquina y
+**restaurarlo ahí**. Un respaldo que nunca se restauró no es un respaldo.
 
 ---
 
@@ -702,3 +726,50 @@ iniciada: si algún día se agrega otro proveedor, el salto va igual.
 Verificado también que con Google habilitado el circuito anónimo sigue
 intacto: comentario enviado, guardado como `anonimo`, y el desafío
 reutilizado rebota.
+
+### 2026-11-15 (tercera parte)
+
+**Entrar con Google, verificado de punta a punta.** Con el salto desde el
+propio dominio ya funciona: `login.google` a las 00:30:07 y la sesión
+`8b5805b8` con `user_id = 1` usada por el navegador 21 segundos después. Eso
+último es el dato: la cookie volvió.
+
+**El comentario con identidad verificada, también.** Probado contra Apache sin
+pasar por Google, firmando el vale con la `HASH_PEPPER` igual que lo firma
+`googleReturn()`: desafío pedido, prueba de trabajo resuelta, piso de tiempo
+esperado, y el comentario entró aprobado con `author_source = 'google'`, el
+nombre a la vista, el correo solo como huella y la insignia de cuenta
+verificada en el HTML. La fila de prueba se borró.
+
+Queda sin probar con Google de verdad solo la mitad que es de Google —elegir
+la cuenta en `accounts.google.com`—, y es la misma mitad que ya funcionó para
+el panel: mismo `authUrl()`, mismo `state`, mismo `parseIdToken()`.
+
+**Respaldo (`php bin/console backup`).** Era el único agujero que quedaba para
+producción y no tenía nada escrito. Deja la base y las imágenes en
+`storage/backups/`, fuera del `DocumentRoot` y en 0600, con rotación por días.
+
+Dos decisiones que no son de comodidad:
+
+- La contraseña de la base va por un archivo de opciones en 0600 que se borra
+  al terminar, **no** por la línea de comandos: `ps` la muestra a cualquier
+  usuario de la máquina.
+- `--single-transaction`, así el volcado es consistente sin bloquear el sitio
+  mientras corre.
+
+Probado acá: 0,5 MB la base, 64 MB las imágenes, `gzip -t` limpio, 20 tablas y
+los `INSERT` adentro. Lo que **no** está probado es restaurarlo en otra
+máquina, y hasta que eso pase no cuenta como respaldo. Está anotado como paso
+pendiente.
+
+El directorio se agregó al `.gitignore`: ahí vive la base entera.
+
+**`/p/privacidad`, como borrador.** Google la exige para publicar la app, y
+sin publicar la app solo comentan con Google las cuentas de la lista de
+prueba. Se escribió leyendo el código, no de una plantilla: dice que quien
+solo lee no recibe ninguna cookie, que el identificador de visita incluye la
+fecha del día y por eso no se puede seguir a nadie de un día al otro, que el
+correo de quien comenta se guarda solo como huella de un solo sentido, que el
+antispam no consulta a terceros, y que de Google llegan nombre y correo y
+nada más. Queda en borrador a propósito: es un texto sobre el sitio de
+Jeremías y lo tiene que leer él antes de publicarlo.
