@@ -13,6 +13,7 @@ use App\Models\PasswordReset;
 use App\Models\User;
 use App\Services\Mailer;
 use App\Services\Spam;
+use App\Services\Totp;
 
 /**
  * Entrada y salida del panel.
@@ -71,6 +72,61 @@ final class AuthController
         } catch (HttpException $e) {
             return $this->loginPage($e->getMessage(), $request->post('email'), $e->status);
         }
+
+        // Segundo factor, si la cuenta lo tiene puesto. Hasta que el código
+        // no se verifique, la sesión no tiene el id del usuario: la clave
+        // sola no abre el panel.
+        if ((int) ($user['totp_confirmed'] ?? 0) === 1) {
+            $this->app->session->set('totp_pending', (int) $user['id']);
+            $this->app->session->set('totp_pending_at', time());
+
+            return $this->page('totp', ['error' => '']);
+        }
+
+        $this->auth->login($request, $user);
+
+        return Response::redirect($this->app->adminPath);
+    }
+
+    /**
+     * Segundo paso: el código de la aplicación de autenticación.
+     *
+     * El «pendiente» vive cinco minutos. Pasado eso hay que volver a poner
+     * la contraseña: una pestaña abierta en el segundo paso no puede quedar
+     * esperando para siempre.
+     */
+    public function totp(Request $request): Response
+    {
+        $this->app->csrf->check($request);
+
+        $userId = (int) ($this->app->session->get('totp_pending') ?? 0);
+        $since = (int) ($this->app->session->get('totp_pending_at') ?? 0);
+
+        if ($userId === 0 || time() - $since > 300) {
+            $this->app->session->forget('totp_pending');
+
+            return $this->loginPage('Se venció el paso del código. Entrá de nuevo.', '', 401);
+        }
+
+        // Seis dígitos son un millón de combinaciones y el código dura
+        // treinta segundos: sin límite de tasa, probarlos todos es viable.
+        $this->app->limiter->hit('totp_ip', $request->ipHash, max: 10, perSeconds: 900);
+        $this->app->limiter->hit('totp_user', (string) $userId, max: 10, perSeconds: 900);
+
+        $users = new User($this->app->db);
+        $user = $users->findById($userId);
+        $totp = new Totp($this->app->env->require('APP_KEY'));
+
+        if ($user === null
+            || !$totp->verify($totp->decrypt($users->totpSecret($userId)), $request->post('codigo'))
+        ) {
+            $this->auth->audit($userId, 'totp.fail', (string) ($user['email'] ?? ''), $request);
+
+            return $this->page('totp', ['error' => 'Ese código no es el correcto.'], 401);
+        }
+
+        $this->app->session->forget('totp_pending');
+        $this->app->session->forget('totp_pending_at');
 
         $this->auth->login($request, $user);
 

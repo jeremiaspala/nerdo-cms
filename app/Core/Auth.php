@@ -150,6 +150,17 @@ final class Auth
             throw new HttpException(403, 'No tenés permiso.');
         }
 
+        // Se vuelve a marcar de quién es la sesión en cada request del panel,
+        // y no solo al iniciarla.
+        //
+        // La fila de sesión puede recrearse —por ejemplo, si se borraron
+        // todas las de la cuenta mientras esta estaba en uso—, y en esa
+        // recreación el user_id se perdía. El resultado era una sesión que
+        // seguía autenticando pero no aparecía en «sesiones abiertas» ni se
+        // podía cerrar desde ahí: invisible y no revocable, que es la peor
+        // combinación posible.
+        $this->app->session->setOwner((int) $user['id'], $request->ipHash, $request->userAgent());
+
         return $user;
     }
 

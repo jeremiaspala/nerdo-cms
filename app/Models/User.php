@@ -30,6 +30,23 @@ final class User
         );
     }
 
+    /**
+     * El secreto TOTP cifrado de una cuenta.
+     *
+     * Va en un método aparte y no en findById(): esa consulta corre en cada
+     * request del panel y no tiene por qué andar cargando el segundo factor
+     * en memoria. Acá se pide solo en el paso que lo necesita.
+     */
+    public function totpSecret(int $id): ?string
+    {
+        $row = $this->db->first(
+            'SELECT totp_secret FROM users WHERE id = :id AND totp_confirmed = 1',
+            ['id' => $id]
+        );
+
+        return $row === null ? null : $row['totp_secret'];
+    }
+
     public function count(): int
     {
         return (int) $this->db->value('SELECT COUNT(*) FROM users');

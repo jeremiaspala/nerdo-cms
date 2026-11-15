@@ -46,6 +46,9 @@ function admin_icon(string $name): string
         'configuracion' => '<path d="M3 7.5h8"/><path d="M15.5 7.5H21"/><path d="M3 16.5h4.5"/>'
             . '<path d="M12 16.5h9"/><circle cx="13" cy="7.5" r="2.4"/><circle cx="9.5" cy="16.5" r="2.4"/>',
 
+        'seguridad' => '<path d="M12 3 4.5 6v6c0 4.2 3 7.9 7.5 9 4.5-1.1 7.5-4.8 7.5-9V6z"/>'
+            . '<path d="M9 12.2l2 2 4-4.2"/>',
+
         'sitio' => '<path d="M14 3.5h6.5V10"/><path d="M20.5 3.5 12 12"/>'
             . '<path d="M19 14.5V19a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2V7.5a2 2 0 0 1 2-2H10"/>',
 
@@ -86,4 +89,37 @@ function post_state(array $post): array
     }
 
     return ['published', 'publicada'];
+}
+
+/**
+ * Resumen legible de un user-agent, para la lista de sesiones.
+ *
+ * No es identificación ni le sirve a nadie para rastrear: es para que quien
+ * mira la lista reconozca cuál es la suya y cuál no.
+ */
+function navegador(string $ua): string
+{
+    if (trim($ua) === '') {
+        return 'Navegador desconocido';
+    }
+
+    $nav = match (true) {
+        str_contains($ua, 'Firefox/') => 'Firefox',
+        str_contains($ua, 'Edg/') => 'Edge',
+        str_contains($ua, 'OPR/') => 'Opera',
+        str_contains($ua, 'Chrome/') => 'Chrome',
+        str_contains($ua, 'Safari/') => 'Safari',
+        default => 'Otro navegador',
+    };
+
+    $so = match (true) {
+        str_contains($ua, 'Android') => 'Android',
+        str_contains($ua, 'iPhone'), str_contains($ua, 'iPad') => 'iOS',
+        str_contains($ua, 'Windows') => 'Windows',
+        str_contains($ua, 'Mac OS X') => 'macOS',
+        str_contains($ua, 'Linux') => 'Linux',
+        default => 'sistema desconocido',
+    };
+
+    return $nav . ' en ' . $so;
 }

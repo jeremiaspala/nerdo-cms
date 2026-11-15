@@ -109,14 +109,36 @@ final class DbSessionHandler implements SessionHandlerInterface, SessionIdInterf
         return true;
     }
 
+    /**
+     * PHP llama acá —y no a write()— cuando la sesión no cambió, porque
+     * `session.lazy_write` está encendido. Es la mayoría de los requests del
+     * panel.
+     *
+     * Por eso acá también se completa de quién es la sesión: si la fila se
+     * recreó alguna vez y quedó sin dueño, esta es la única oportunidad de
+     * volver a marcarla. Sin esto, una sesión podía seguir autenticando y al
+     * mismo tiempo no aparecer en «sesiones abiertas» ni poder cerrarse.
+     *
+     * El COALESCE es importante en el otro sentido: nunca pisa un dueño que
+     * ya esté puesto.
+     */
     public function updateTimestamp(string $id, string $data): bool
     {
         $this->db->run(
             'UPDATE sessions
                 SET updated_at = NOW(),
-                    expires_at = DATE_ADD(NOW(), INTERVAL :idle SECOND)
+                    expires_at = DATE_ADD(NOW(), INTERVAL :idle SECOND),
+                    user_id    = COALESCE(user_id, :uid),
+                    ip_hash    = IF(ip_hash = \'\', :ip, ip_hash),
+                    user_agent = IF(user_agent = \'\', :ua, user_agent)
               WHERE id = :id',
-            ['id' => $id, 'idle' => $this->idleSeconds]
+            [
+                'id' => $id,
+                'idle' => $this->idleSeconds,
+                'uid' => $this->userId,
+                'ip' => $this->ipHash,
+                'ua' => $this->userAgent,
+            ]
         );
 
         return true;

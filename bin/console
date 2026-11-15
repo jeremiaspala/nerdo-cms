@@ -109,6 +109,36 @@ try {
             out("Usuario creado: {$email} ({$role})");
             break;
 
+        case 'user:totp-off':
+            // La salida de emergencia: si se perdió el teléfono, el segundo
+            // factor se saca desde el servidor, que es la única forma de
+            // hacerlo sin poder entrar al panel.
+            $email = mb_strtolower((string) opt($args, 'email', ''));
+
+            if ($email === '') {
+                exit("Usá: console user:totp-off --email=vos@dominio\n");
+            }
+
+            $n = $app->db->run(
+                'UPDATE users SET totp_secret = NULL, totp_confirmed = 0 WHERE email = :e',
+                ['e' => $email]
+            )->rowCount();
+
+            if ($n === 0) {
+                out("No hay ninguna cuenta con ese correo (o ya lo tenía apagado).");
+                break;
+            }
+
+            $app->db->insert('audit_log', [
+                'user_id' => null,
+                'action' => 'totp.disabled_cli',
+                'target' => $email,
+                'ip_hash' => '',
+            ]);
+
+            out("Verificación en dos pasos desactivada para {$email}.");
+            break;
+
         case 'import:wp':
             $dsn = opt($args, 'db');
             $uploads = opt($args, 'uploads');
@@ -347,6 +377,7 @@ try {
             out('  migrate          aplica las migraciones pendientes');
             out('  migrate:status   qué se corrió y qué falta');
             out('  user:create      --email= --name= [--role=admin]');
+            out('  user:totp-off    --email=  saca el segundo factor de una cuenta');
             out('  seed:demo        contenido de prueba para ver el tema');
             out('  gc               limpia sesiones, límites y desafíos vencidos');
             out('  cache:clear      vacía el caché de página');
