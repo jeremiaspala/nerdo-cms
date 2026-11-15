@@ -295,6 +295,21 @@ Dos, y las dos elegidas por licencia además de por función:
   el editor. Se descartó TinyMCE porque desde la versión 7 es GPL-2.0 o licencia
   comercial, y eso obligaría a publicar este CMS bajo GPL.
 
+Las tipografías también son de terceros y van con su licencia al lado:
+**Inter** y **Montserrat**, las dos bajo SIL Open Font License, en
+`public/assets/fonts/`.
+
+## Licencia
+
+**MIT** — ver [LICENSE](LICENSE). Usalo, modificalo y vendelo si querés; lo
+único que pide es que conserves el aviso de copyright y el texto de la
+licencia en las copias.
+
+Eso cubre el código de este repositorio. Lo de terceros mantiene la suya:
+Quill (BSD-3-Clause) e Inter y Montserrat (OFL) están incluidos con su
+archivo de licencia, y HTMLPurifier (LGPL-2.1-or-later) entra por Composer y
+no se distribuye acá.
+
 ## El saneador es el punto crítico
 
 `app/Services/HtmlSanitizer.php` es el archivo más sensible del proyecto: lo que
