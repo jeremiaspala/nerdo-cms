@@ -33,17 +33,31 @@ $verPrefijo = $type === 'page' ? '/p/' : '/';
     <?php foreach ($items as $p): ?>
       <tr>
         <td>
-          <a class="strong" href="<?= e($adminPath) ?>/<?= $seg ?>/<?= (int) $p['id'] ?>">
-            <?= e($p['title']) ?>
-          </a>
-          <span class="slug">/<?= e($p['slug']) ?></span>
+          <div class="rowtitle">
+            <?php /* La miniatura es la variante de 400 px que ya genera
+                     ImageProcessor al subir; no se crea nada nuevo. */ ?>
+            <a class="thumb<?= empty($p['image']) ? ' thumb-vacia' : '' ?>"
+               href="<?= e($adminPath) ?>/<?= $seg ?>/<?= (int) $p['id'] ?>"
+               tabindex="-1" aria-hidden="true">
+              <?php if (!empty($p['image'])): ?>
+                <img src="/uploads/<?= e(pathinfo((string) $p['image'], PATHINFO_FILENAME)) ?>-400.jpg"
+                     alt="" width="64" height="48" loading="lazy" decoding="async">
+              <?php endif; ?>
+            </a>
+            <div class="rowtext">
+              <a class="strong" href="<?= e($adminPath) ?>/<?= $seg ?>/<?= (int) $p['id'] ?>">
+                <?= e($p['title']) ?>
+              </a>
+              <span class="slug">/<?= e($p['slug']) ?></span>
+            </div>
+          </div>
         </td>
         <td class="nowrap">
           <?php [$estado, $etiqueta] = post_state($p); ?>
           <span class="pill pill-<?= e($estado) ?>"><?= e($etiqueta) ?></span>
         </td>
         <td class="nowrap dim">
-          <?= e(substr((string) ($p['published_at'] ?? $p['updated_at']), 0, 16)) ?>
+          <?= e(fecha_ar((string) ($p['published_at'] ?? $p['updated_at']), true)) ?>
         </td>
         <td class="nowrap actions">
           <?php if ($p['status'] === 'published'): ?>

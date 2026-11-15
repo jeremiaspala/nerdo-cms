@@ -66,10 +66,21 @@ $verPrefijo = $type === 'page' ? '/p/' : '/';
       <section class="box">
         <h2>Publicación</h2>
 
+        <?php /* Campo de texto y no <input type="datetime-local">: ese lo
+                 dibuja el navegador con el formato de SU idioma, no el de la
+                 página, así que en un Chrome en inglés pide 11/14/2026
+                 aunque el sitio esté en castellano. Acá el formato lo fija
+                 el CMS y lo lee fecha_ar_a_sql(). */ ?>
         <label class="lbl" for="published_at">Fecha</label>
-        <input class="in" type="datetime-local" id="published_at" name="published_at"
-               value="<?= e(date('Y-m-d\TH:i', strtotime((string) ($post['published_at'] ?: 'now')))) ?>">
-        <p class="hint">Una fecha futura deja la entrada agendada: no aparece hasta que llegue.</p>
+        <input class="in" type="text" id="published_at" name="published_at"
+               inputmode="numeric" maxlength="16" autocomplete="off"
+               placeholder="dd/mm/aaaa hh:mm"
+               pattern="\d{1,2}/\d{1,2}/\d{4}([ ,]+\d{1,2}:\d{2})?"
+               value="<?= e(fecha_ar((string) ($post['published_at'] ?: date('Y-m-d H:i:s')), true)) ?>">
+        <p class="hint">
+          En dd/mm/aaaa hh:mm. Una fecha futura deja la entrada agendada: no
+          aparece hasta que llegue.
+        </p>
 
         <?php /* El enlace definitivo, desde el primer borrador.
                  Es lo que se pega en el programador de LinkedIn o Instagram

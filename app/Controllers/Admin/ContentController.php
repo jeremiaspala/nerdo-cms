@@ -62,7 +62,7 @@ final class ContentController extends AdminController
                 'body_html' => '',
                 'body_blocks' => '',
                 'status' => Post::STATUS_DRAFT,
-                'published_at' => date('Y-m-d H:i'),
+                'published_at' => date('Y-m-d H:i:s'),
                 'meta_title' => '',
                 'meta_description' => '',
                 'canonical' => '',
@@ -306,8 +306,24 @@ final class ContentController extends AdminController
         return '/' . $this->segment($type) . '/' . $id;
     }
 
+    /**
+     * La fecha llega escrita a mano en dd/mm/aaaa hh:mm.
+     *
+     * No se le pasa directo a strtotime(): esa función lee 03/04/2026 como
+     * el 4 de marzo, porque asume el formato de Estados Unidos. Una entrada
+     * agendada para el 3 de abril saldría un mes antes y nadie se enteraría
+     * hasta verla publicada.
+     */
     private function parseDate(string $value): string
     {
+        $sql = fecha_ar_a_sql($value);
+
+        if ($sql !== null) {
+            return $sql;
+        }
+
+        // Por las dudas: algo en formato ISO (de un formulario viejo o de la
+        // propia base) también se acepta.
         $ts = strtotime($value);
 
         return date('Y-m-d H:i:s', $ts === false ? time() : $ts);

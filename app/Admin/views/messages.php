@@ -83,7 +83,7 @@ $labels = [
             <?php /* El mailto es la razón de ser de esta pantalla: contestar
                      se contesta desde el cliente de correo. */ ?>
             <a href="mailto:<?= e($m['email']) ?>?subject=<?= rawurlencode('Re: ' . ($m['subject'] !== '' ? $m['subject'] : 'tu mensaje')) ?>"><?= e($m['email']) ?></a>
-            <span class="dim"><?= e(substr((string) $m['created_at'], 0, 16)) ?></span>
+            <span class="dim"><?= e(fecha_ar((string) $m['created_at'], true)) ?></span>
             <span class="pill pill-<?= e($m['status']) ?>"><?= e($labels[$m['status']] ?? $m['status']) ?></span>
             <?php if ((int) $m['mailed'] === 0 && $m['status'] !== 'spam'): ?>
               <span class="pill pill-spam" title="Quedó guardado igual">no se pudo avisar por correo</span>

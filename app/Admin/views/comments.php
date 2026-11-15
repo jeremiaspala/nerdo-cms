@@ -93,7 +93,7 @@ $labels = [
               <a class="dim" href="<?= safe_url($c['author_url']) ?>"
                  target="_blank" rel="noopener nofollow ugc"><?= e(parse_url((string) $c['author_url'], PHP_URL_HOST) ?: 'sitio') ?></a>
             <?php endif; ?>
-            <span class="dim"><?= e(substr((string) $c['created_at'], 0, 16)) ?></span>
+            <span class="dim"><?= e(fecha_ar((string) $c['created_at'], true)) ?></span>
             <span class="pill pill-<?= e($c['status']) ?>"><?= e($c['status']) ?></span>
             <?php if ((int) $c['spam_score'] > 0): ?>
               <span class="pill pill-score" title="<?= e($c['spam_reasons']) ?>">puntaje <?= (int) $c['spam_score'] ?></span>

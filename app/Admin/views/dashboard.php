@@ -52,7 +52,7 @@ $pageTitle = 'Escritorio';
             <?php [$estado, $etiqueta] = post_state($p); ?>
             <span class="pill pill-<?= e($estado) ?>"><?= e($etiqueta) ?></span>
           </td>
-          <td class="nowrap dim"><?= e(substr((string) ($p['published_at'] ?? $p['updated_at']), 0, 10)) ?></td>
+          <td class="nowrap dim"><?= e(fecha_ar((string) ($p['published_at'] ?? $p['updated_at']))) ?></td>
         </tr>
       <?php endforeach; ?>
       <?php if ($recent === []): ?>
@@ -70,7 +70,7 @@ $pageTitle = 'Escritorio';
         <tr>
           <td><code class="tag"><?= e($a['action']) ?></code></td>
           <td class="dim"><?= e($a['target']) ?></td>
-          <td class="nowrap dim"><?= e(substr((string) $a['created_at'], 0, 16)) ?></td>
+          <td class="nowrap dim"><?= e(fecha_ar((string) $a['created_at'], true)) ?></td>
         </tr>
       <?php endforeach; ?>
       <?php if ($audit === []): ?>

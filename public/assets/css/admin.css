@@ -589,3 +589,17 @@ textarea.in { resize: vertical; line-height: 1.6; }
 /* ---------- categoría nueva desde el editor ---------- */
 .catnew { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .catnew .lbl { margin-bottom: 5px; }
+
+/* ---------- miniatura en los listados ---------- */
+.rowtitle { display: flex; align-items: center; gap: 12px; }
+.rowtext { min-width: 0; }
+.thumb {
+  flex: 0 0 64px; width: 64px; height: 48px; border-radius: 5px; overflow: hidden;
+  display: block; background: #eceff0;
+}
+.thumb img { display: block; width: 64px; height: 48px; object-fit: cover; }
+/* Sin destacada no se deja un hueco: se marca, que es información. */
+.thumb-vacia {
+  border: 1px dashed var(--line); background: repeating-linear-gradient(
+    45deg, #f4f7f6, #f4f7f6 6px, #eceff0 6px, #eceff0 12px);
+}

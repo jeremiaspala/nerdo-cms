@@ -438,3 +438,26 @@ desplaza y quedan solo los íconos.
 
 La sección activa se marca con color **y** con una barra a la izquierda: el
 color solo no alcanza para quien no lo distingue.
+
+### 2026-11-14 (novena parte)
+
+Tanda de pedidos chicos del panel y del tema:
+
+- **Categoría nueva desde la entrada que se está escribiendo.** Antes no se
+  podía desde ningún lado: las 28 categorías venían de la importación.
+  Renombrar y borrar siguen sin estar, y es a propósito: borrar una
+  categoría que ya está en una URL rompe enlaces, así que va a necesitar su
+  301 igual que el slug de una entrada.
+- **Fechas en dd/mm/aaaa** en todo el panel. El campo de publicación dejó de
+  ser `<input type="datetime-local">`: ese lo dibuja el navegador con el
+  formato de SU idioma, no el de la página, así que en un Chrome en inglés
+  pedía 11/14/2026. Ahora es un campo de texto con el formato fijado por el
+  CMS, y lo lee `fecha_ar_a_sql()`. **Ojo con `strtotime`**: lee 03/04/2026
+  como el 4 de marzo, así que una entrada agendada para el 3 de abril habría
+  salido un mes antes sin que nadie se enterara.
+- **Miniatura de la imagen destacada** en el listado de entradas, con la
+  variante de 400 px que ya se genera al subir. Las que no tienen quedan
+  marcadas con una trama, que también es información.
+- **«Hecho con Nerdo CMS» en el pie**, apuntando al repositorio. Va ahí y no
+  en un `<meta name="generator">`: eso es lo primero que mira un escáner
+  para saber qué versión atacar, y es justo lo que se le sacó a WordPress.

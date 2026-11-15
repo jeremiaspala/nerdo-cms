@@ -281,8 +281,10 @@ final class Post
     public function adminList(string $type, ?string $status, int $limit, int $offset): array
     {
         $sql = 'SELECT p.id, p.type, p.slug, p.title, p.status, p.published_at, p.updated_at,
-                       p.reading_minutes
+                       p.reading_minutes,
+                       m.filename AS image, m.alt AS image_alt
                   FROM posts p
+                  LEFT JOIN media m ON m.id = p.featured_media_id
                  WHERE p.type = :type';
         $params = ['type' => $type, 'limit' => $limit, 'offset' => $offset];
 

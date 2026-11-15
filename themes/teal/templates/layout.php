@@ -103,7 +103,16 @@
 
 <footer class="foot">
   <div class="foot-in">
-    <p>© <?= (int) $year ?> <?= e($site['title']) ?></p>
+    <p>
+      © <?= (int) $year ?> <?= e($site['title']) ?>
+      <?php /* El crédito va acá y no en un <meta name="generator">: eso es
+               lo primero que mira un escáner para saber qué versión atacar,
+               y es justo lo que se le sacó a WordPress. Un enlace en el pie
+               se lee igual y no le dice nada a un robot que no sepa ya. */ ?>
+      <span class="foot-sep">·</span>
+      hecho con <a href="https://github.com/jeremiaspala/nerdo-cms"
+                   rel="noopener">Nerdo CMS</a>
+    </p>
     <p class="foot-links">
       <a href="/feed.xml">RSS</a>
       <a href="/archivo/<?= (int) $year ?>">Archivo</a>

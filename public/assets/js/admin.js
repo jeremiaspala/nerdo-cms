@@ -484,9 +484,17 @@
     var date = document.getElementById('published_at');
     if (!btn || !date) { return; }
 
+    // dd/mm/aaaa hh:mm → Date. new Date("04/03/2026") lo leería como 3 de
+    // abril, que es el mismo error que se arregló del lado del servidor.
+    function leer(texto) {
+      var m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ ,]+(\d{1,2}):(\d{2}))?$/.exec(texto.trim());
+      if (!m) { return null; }
+      return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0));
+    }
+
     function refresh() {
-      var when = new Date(date.value);
-      var future = !isNaN(when.getTime()) && when.getTime() > Date.now() + 60000;
+      var when = leer(date.value);
+      var future = when !== null && when.getTime() > Date.now() + 60000;
       btn.textContent = future ? btn.dataset.programar : btn.dataset.publicar;
     }
 

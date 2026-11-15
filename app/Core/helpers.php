@@ -141,6 +141,56 @@ function avatar_class(string $emailHash): string
     return 'av-' . ($seed % 8);
 }
 
+/**
+ * Fecha en el formato que se usa en Argentina: dd/mm/aaaa.
+ *
+ * El panel la usa en todos lados. No alcanza con confiar en el navegador:
+ * un <input type="datetime-local"> se dibuja con el formato del idioma del
+ * navegador, no el de la página, así que en un Chrome en inglés muestra
+ * 11/14/2026 aunque el sitio esté en castellano y el servidor en America/
+ * Argentina/Buenos_Aires.
+ */
+function fecha_ar(?string $sqlDate, bool $conHora = false): string
+{
+    if ($sqlDate === null || trim($sqlDate) === '') {
+        return '';
+    }
+
+    $ts = strtotime($sqlDate);
+
+    if ($ts === false) {
+        return '';
+    }
+
+    return date($conHora ? 'd/m/Y H:i' : 'd/m/Y', $ts);
+}
+
+/**
+ * Lee una fecha escrita a mano en dd/mm/aaaa (con o sin hora) y la devuelve
+ * en el formato de la base. Devuelve null si no se entiende.
+ *
+ * `strtotime` interpreta 03/04/2026 como el 4 de marzo, porque asume el
+ * formato de Estados Unidos. Por eso se parsea a mano antes de dejárselo.
+ */
+function fecha_ar_a_sql(string $texto): ?string
+{
+    $texto = trim($texto);
+
+    if (!preg_match('#^(\d{1,2})/(\d{1,2})/(\d{4})(?:[ ,]+(\d{1,2}):(\d{2}))?$#', $texto, $m)) {
+        return null;
+    }
+
+    [, $d, $mes, $anio] = $m;
+    $hora = (int) ($m[4] ?? 0);
+    $min = (int) ($m[5] ?? 0);
+
+    if (!checkdate((int) $mes, (int) $d, (int) $anio) || $hora > 23 || $min > 59) {
+        return null;
+    }
+
+    return sprintf('%04d-%02d-%02d %02d:%02d:00', (int) $anio, (int) $mes, (int) $d, $hora, $min);
+}
+
 /** Fecha y hora cortas, para los comentarios. */
 function fecha_hora(string $sqlDate): string
 {
