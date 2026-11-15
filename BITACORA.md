@@ -6,6 +6,11 @@ Registro de qué se hizo, por qué, y qué sigue. Para retomar sin releer códig
 
 ## Cómo retomar
 
+**Repositorio público**: https://github.com/jeremiaspala/nerdo-cms
+(`origin/main`). El `.env`, las credenciales de desarrollo, el volcado de
+WordPress y `public/uploads/` quedan fuera por `.gitignore`: tienen secretos
+o datos personales de quienes comentaron.
+
 El Apache local ya sirve el proyecto en el puerto 8080
 (`/etc/apache2/sites-available/nerdadas.conf`). Alcanza con que esté
 levantado:
@@ -326,3 +331,36 @@ de cabeceras: cortado antes del Mailer), desafío de comentarios reusado en
 contacto (400), envío instantáneo, cuatro enlaces (50 puntos → spam, y a
 quien lo mandó se le contesta lo mismo que a cualquiera), y en el panel:
 marcar leído de a uno con el contador bajando.
+
+### 2026-11-14 (quinta parte)
+
+**El CMS pasó a llamarse Nerdo CMS.** Antes era «Nerdadas CMS», que mezclaba
+el nombre del blog con el del software. Renombrado en el panel, el login, la
+cabecera `X-Mailer`, el user-agent del importador, el `HTML.DefinitionID` de
+HTMLPurifier (se vació su caché a mano para que reconstruya la definición) y
+la documentación. El título del sitio —«Nerdadas!»— no se tocó: es el blog,
+no el CMS.
+
+**Repositorio público**: https://github.com/jeremiaspala/nerdo-cms
+
+Se publicaron 113 archivos. Antes de subir se verificó, archivo por archivo
+de lo que estaba en el índice, que no fueran: el `.env`, las credenciales de
+desarrollo, el volcado de WordPress (tiene los correos de quienes comentaron
+en diez años) ni las 554 imágenes. Todo eso ya estaba cubierto por
+`.gitignore`.
+
+Se agregó `.env.example` con los catorce ajustes y, sobre todo, con el
+**porqué** de los dos secretos: si `HASH_PEPPER` cambia, la analítica pierde
+la continuidad de visitantes y los comentarios dejan de reconocer a quien ya
+comentó.
+
+**Capturas** en `docs/capturas/`, enlazadas desde el README: portada, entrada
+con hilos, contacto, escritorio, editor, moderación y analítica. Las de
+moderación y analítica se sacaron con datos de ejemplo generados para eso
+—dos comentarios, un mensaje y 9.158 visitas— y **se borraron después**, como
+ya se había hecho con los datos de prueba del gráfico. El panel vuelve a
+estar en cero a propósito.
+
+**Pendiente de decidir**: el repositorio no tiene licencia, así que por
+defecto es «todos los derechos reservados». Si la idea es que alguien más lo
+pueda usar, hay que agregar un `LICENSE`.
