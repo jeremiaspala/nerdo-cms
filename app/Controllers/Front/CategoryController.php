@@ -27,9 +27,7 @@ final class CategoryController extends Controller
 
         $items = $this->posts->byCategory($slug, self::PER_PAGE, ($page - 1) * self::PER_PAGE);
         $this->app->analytics->record($request);
-        foreach ($items as $i => $post) {
-            $items[$i]['categories'] = $this->posts->categoriesOf((int) $post['id']);
-        }
+        $items = $this->posts->withCategories($items);
 
         $data = $this->base($request, [
             'title' => $this->title((string) ($category['meta_title'] ?: $category['name'])),

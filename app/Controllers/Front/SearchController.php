@@ -20,9 +20,7 @@ final class SearchController extends Controller
         }
 
         $items = $term === '' ? [] : $this->posts->search($term, 40);
-        foreach ($items as $i => $post) {
-            $items[$i]['categories'] = $this->posts->categoriesOf((int) $post['id']);
-        }
+        $items = $this->posts->withCategories($items);
 
         $data = $this->base($request, [
             'title' => $this->title($term === '' ? 'Buscar' : 'Buscar: ' . $term),

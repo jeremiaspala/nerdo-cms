@@ -382,3 +382,34 @@ el texto; a partir del 72% del ancho no hay nada. El ajuste «Intensidad del
 degradé» pasó a llamarse «Velo detrás del título» y ahora regula eso.
 
 Las capturas 01 y 03 del repositorio se rehicieron con el encabezado nuevo.
+
+### 2026-11-14 (séptima parte)
+
+**Ancho completo y barra lateral**, como el tema que se reemplaza.
+
+El contenido estaba en una columna de 1180 px centrada: en una pantalla de
+1900 quedaban 360 px de aire a cada lado. Ahora el armazón es de dos
+columnas (`.shell`) con tope en 1800 px —el tope existe porque a partir de
+ahí las líneas se vuelven ilegibles— y una barra lateral de 340 px. Abajo de
+1080 px la barra pasa debajo del contenido y deja de ser sticky.
+
+La entrada se centra dentro de su columna: pegada a la izquierda dejaba un
+hueco en el medio que parecía un error de maquetado.
+
+**Las tres pestañas de la barra —Últimas, Populares, Tendencias— no llevan
+JavaScript**: son tres radios ocultos y tres labels, y el panel visible lo
+decide el CSS con `:checked ~`. Funciona con teclado, que es el
+comportamiento nativo de un grupo de radios. El widget equivalente en
+WordPress cargaba jQuery y los tabs de Bootstrap en todas las páginas.
+
+«Populares» (90 días) y «Tendencias» (7 días) salen de `Post::mostViewed()`,
+que suma el agregado de `stats_daily` con el detalle de `hits` posterior al
+último día agregado —si no, un día recién agregado se contaría dos veces—.
+En WordPress esas dos listas las llenaba un plugin que vuelve a contar las
+visitas por su cuenta.
+
+**De paso, un N+1 que estaba desde el principio**: los listados pedían las
+categorías de a una entrada por vez (diez entradas, diez consultas) y la
+barra lateral iba a sumar quince más. `Post::withCategories()` las trae todas
+en una. Medido en la portada sin caché: 8,0 ms con la barra lateral incluida,
+contra 5,2 ms que costaba antes sin barra. Desde el caché, 1,7 ms.

@@ -88,9 +88,18 @@
   <p class="flash flash-<?= e($flash['type']) ?>"><?= e($flash['message']) ?></p>
 <?php endif; ?>
 
-<main id="contenido">
-<?= $content /* ya viene escapado desde la plantilla hija */ ?>
-</main>
+<?php /* Dos columnas a ancho completo, como el tema que había en
+         WordPress. La barra lateral solo se arma si el controlador la pasó:
+         una página de error se renderiza sin tocar la base y no la tiene. */ ?>
+<div class="shell<?= empty($rail) ? ' shell-solo' : '' ?>">
+  <main id="contenido">
+  <?= $content /* ya viene escapado desde la plantilla hija */ ?>
+  </main>
+
+  <?php if (!empty($rail)): ?>
+    <?php include __DIR__ . '/rail.php'; ?>
+  <?php endif; ?>
+</div>
 
 <footer class="foot">
   <div class="foot-in">

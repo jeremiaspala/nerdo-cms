@@ -37,9 +37,7 @@ final class ArchiveController extends Controller
             throw new NotFound();
         }
 
-        foreach ($items as $i => $post) {
-            $items[$i]['categories'] = $this->posts->categoriesOf((int) $post['id']);
-        }
+        $items = $this->posts->withCategories($items);
 
         $this->app->analytics->record($request);
 

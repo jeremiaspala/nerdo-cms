@@ -104,6 +104,17 @@ es técnica: es a quién le llegan los datos.
 
 Los bots se detectan por user-agent y **no se cuentan**.
 
+Esos mismos números alimentan las pestañas **Populares** y **Tendencias** de
+la barra lateral —90 y 7 días—, sin un plugin que vuelva a contar las visitas
+por su cuenta. La suma combina `stats_daily` (lo que ya pasó por el cron) con
+`hits` (lo posterior al último día agregado), para no contar dos veces un día
+que esté en los dos lados.
+
+La barra lateral no lleva JavaScript: las tres pestañas son tres
+`<input type="radio">` ocultos y tres `<label>`, y el panel visible lo decide
+el CSS. El widget equivalente del tema de WordPress cargaba jQuery y los tabs
+de Bootstrap en todas las páginas para alternar tres listas.
+
 ## Caché de página
 
 Reemplaza a `wp-super-cache`. `PageCache` guarda el HTML ya armado en

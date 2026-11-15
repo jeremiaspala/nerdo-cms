@@ -26,9 +26,7 @@ final class HomeController extends Controller
         $items = $this->posts->published(self::PER_PAGE, ($page - 1) * self::PER_PAGE);
         $this->app->analytics->record($request);
 
-        foreach ($items as $i => $post) {
-            $items[$i]['categories'] = $this->posts->categoriesOf((int) $post['id']);
-        }
+        $items = $this->posts->withCategories($items);
 
         $data = $this->base($request, [
             'title' => $page > 1

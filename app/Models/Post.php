@@ -152,6 +152,115 @@ final class Post
         );
     }
 
+    /**
+     * Las más vistas de los últimos N días.
+     *
+     * De acá salen las pestañas «Populares» y «Tendencias» de la barra
+     * lateral. En WordPress eso necesitaba un plugin —Jetpack o
+     * WP-PostViews— que cuenta las visitas de nuevo, con su propia tabla y su
+     * propio JavaScript. Acá los números ya están: son los de la analítica
+     * propia, que se mide en el servidor.
+     *
+     * La medición vive en dos lados y hay que sumar sin contar dos veces:
+     * `stats_daily` tiene el agregado de los días que ya pasaron por el cron,
+     * y `hits` el detalle crudo. Un mismo día puede estar en los dos —el cron
+     * agrega pero el detalle se conserva hasta que vence la retención—, así
+     * que del detalle solo se toma lo posterior al último día agregado.
+     */
+    public function mostViewed(int $days, int $limit): array
+    {
+        $since = date('Y-m-d', strtotime("-{$days} days"));
+
+        // Hasta dónde llegó el agregado. Sin cron todavía, todo sale de hits.
+        $aggregatedUpTo = (string) ($this->db->value('SELECT MAX(day) FROM stats_daily') ?? '');
+        $detailFrom = $aggregatedUpTo === ''
+            ? $since . ' 00:00:00'
+            : date('Y-m-d 00:00:00', strtotime($aggregatedUpTo . ' +1 day'));
+
+        return $this->db->select(
+            'SELECT ' . self::FIELDS . ', v.vistas' . self::FROM . '
+               JOIN (
+                     SELECT post_id, SUM(vistas) AS vistas FROM (
+                         SELECT post_id, views AS vistas
+                           FROM stats_daily
+                          WHERE post_id IS NOT NULL AND day >= :since
+                          UNION ALL
+                         SELECT post_id, 1 AS vistas
+                           FROM hits
+                          WHERE post_id IS NOT NULL AND created_at >= :detail
+                     ) u GROUP BY post_id
+                    ) v ON v.post_id = p.id
+              WHERE p.type = :type
+                AND p.status = :status
+                AND p.published_at <= NOW()
+              ORDER BY v.vistas DESC, p.published_at DESC
+              LIMIT :limit',
+            [
+                'since' => $since,
+                'detail' => $detailFrom,
+                'type' => self::TYPE_POST,
+                'status' => self::STATUS_PUBLISHED,
+                'limit' => $limit,
+            ]
+        );
+    }
+
+    /**
+     * Categorías de varias entradas, en una sola consulta.
+     *
+     * Los listados pedían las categorías de a una entrada por vez: diez
+     * entradas eran diez consultas, y con la barra lateral iban a ser quince
+     * más. Esto es la misma información con una.
+     *
+     * @param  array<int,int> $postIds
+     * @return array<int,array<int,array<string,mixed>>> id de entrada => categorías
+     */
+    public function categoriesOfMany(array $postIds): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $postIds))));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $rows = $this->db->select(
+            'SELECT pc.post_id, c.id, c.slug, c.name
+               FROM categories c
+               JOIN post_categories pc ON pc.category_id = c.id
+              WHERE pc.post_id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')
+              ORDER BY c.name',
+            $ids
+        );
+
+        $out = array_fill_keys($ids, []);
+        foreach ($rows as $row) {
+            $out[(int) $row['post_id']][] = [
+                'id' => (int) $row['id'],
+                'slug' => (string) $row['slug'],
+                'name' => (string) $row['name'],
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Pega las categorías a una lista de entradas ya consultada.
+     *
+     * @param  array<int,array<string,mixed>> $posts
+     * @return array<int,array<string,mixed>>
+     */
+    public function withCategories(array $posts): array
+    {
+        $byPost = $this->categoriesOfMany(array_column($posts, 'id'));
+
+        foreach ($posts as $i => $post) {
+            $posts[$i]['categories'] = $byPost[(int) $post['id']] ?? [];
+        }
+
+        return $posts;
+    }
+
     /** @return array<int,array<string,mixed>> categorías de una entrada */
     public function categoriesOf(int $postId): array
     {

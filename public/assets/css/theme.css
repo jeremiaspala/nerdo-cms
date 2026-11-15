@@ -63,8 +63,12 @@
   --disp: "Montserrat", var(--sans);
   --mono: ui-monospace, SFMono-Regular, Menlo, "JetBrains Mono", monospace;
 
-  --wrap: 1180px;
-  --gut: max(16px, env(safe-area-inset-left, 0px));
+  /* Ancho completo, como el tema de WordPress que se reemplaza: en una
+   * pantalla de 1900 el contenido ocupa casi todo. El tope existe igual
+   * porque a partir de ahí las líneas de texto se vuelven ilegibles. */
+  --wrap: 1800px;
+  --gut: max(clamp(16px, 2vw, 44px), env(safe-area-inset-left, 0px));
+  --rail: 340px;
 }
 
 * { box-sizing: border-box; }
@@ -180,8 +184,26 @@ a:focus-visible, input:focus-visible, button:focus-visible {
 }
 .flash-error { background: #fdecea; border-color: #f3c6c1; color: #8e2a1f; }
 
+/* ---------- armazón de dos columnas ---------- */
+.shell {
+  max-width: var(--wrap); margin-inline: auto; padding-inline: var(--gut);
+  display: grid; grid-template-columns: minmax(0, 1fr) var(--rail); gap: 0 46px;
+  align-items: start;
+}
+/* Sin barra lateral (la página de error) la columna ocupa todo. */
+.shell-solo { grid-template-columns: minmax(0, 1fr); }
+main { min-width: 0; }
+
+/* Debajo de 1080 la barra no entra al lado: pasa abajo, que es donde sigue
+ * siendo útil y no donde estorba. */
+@media (max-width: 1080px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  /* Apilada no tiene a qué quedarse pegada: sticky acá la dejaría flotando
+     encima del contenido mientras se baja. */
+  .rail { position: static; }
+}
+
 /* ---------- listados ---------- */
-main { max-width: var(--wrap); margin-inline: auto; padding-inline: var(--gut); }
 
 .eyebrow {
   font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em;
@@ -251,7 +273,11 @@ main { max-width: var(--wrap); margin-inline: auto; padding-inline: var(--gut); 
 .pager-pos { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 
 /* ---------- entrada ---------- */
-.entry { padding-block: 34px 10px; max-width: 760px; }
+/* La entrada se centra en su columna: con la barra lateral al costado, una
+ * columna de texto pegada al borde izquierdo deja un hueco en el medio que
+ * parece un error de maquetado. El ancho máximo se mantiene porque lo que
+ * decide la legibilidad es la longitud de línea, no el ancho de la pantalla. */
+.entry { padding-block: 34px 10px; max-width: 820px; margin-inline: auto; }
 .entry-head { padding-bottom: 20px; border-bottom: 1px solid var(--line); }
 .entry-head h1 {
   font-size: clamp(26px, 5vw, 40px); font-weight: 800; letter-spacing: -.026em; margin: 12px 0 0;
@@ -310,7 +336,7 @@ main { max-width: var(--wrap); margin-inline: auto; padding-inline: var(--gut); 
 }
 .share a:hover { border-color: var(--accent); color: var(--accent); }
 
-.adjacent { display: flex; gap: 12px; flex-wrap: wrap; padding-block: 10px 44px; }
+.adjacent { display: flex; gap: 12px; flex-wrap: wrap; padding-block: 10px 44px; max-width: 820px; margin-inline: auto; }
 .adj {
   flex: 1; min-width: 230px; border: 1px solid var(--line); border-radius: 9px;
   padding: 13px 16px; text-decoration: none;
@@ -324,7 +350,7 @@ main { max-width: var(--wrap); margin-inline: auto; padding-inline: var(--gut); 
 .adj-next { text-align: right; }
 
 /* ---------- error ---------- */
-.errorpage { padding-block: 70px 90px; max-width: 56ch; }
+.errorpage { padding-block: 70px 90px; max-width: 56ch; margin-inline: auto; }
 .errorpage h1 { font-size: clamp(25px, 5vw, 36px); font-weight: 800; letter-spacing: -.024em; margin-top: 8px; }
 .errorpage-msg { color: var(--ink-2); margin-top: 12px; font-size: 16px; }
 .errorpage-id { color: var(--ink-3); font-size: 13px; margin-top: 14px; }
@@ -363,7 +389,7 @@ main { max-width: var(--wrap); margin-inline: auto; padding-inline: var(--gut); 
 [hidden] { display: none !important; }
 
 /* ---------- comentarios ---------- */
-.comments { max-width: 760px; padding-block: 10px 40px; border-top: 1px solid var(--line); }
+.comments { max-width: 820px; margin-inline: auto; padding-block: 10px 40px; border-top: 1px solid var(--line); }
 .comments-title {
   font-size: 19px; font-weight: 800; letter-spacing: -.018em; padding-block: 26px 4px;
 }
@@ -487,3 +513,64 @@ a.cmt-name:hover { color: var(--accent); }
 .contact { padding-block: 6px 30px; }
 .contact-intro { color: var(--ink-2); font-size: 15.5px; margin-bottom: 20px; }
 .contact-form { margin-top: 0; }
+
+/* ---------- barra lateral ---------- */
+.rail { padding-block: 34px 40px; position: sticky; top: 16px; }
+
+.widget {
+  border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  background: var(--paper);
+}
+
+/* Los radios manejan las pestañas y no se ven, pero NO van con display:none
+ * ni con visibility:hidden: así dejarían de recibir foco y la barra se
+ * volvería inoperable con teclado. Se los saca de la vista y listo. */
+.rail-radio { position: absolute; opacity: 0; pointer-events: none; }
+
+.rail-tabs { display: grid; grid-template-columns: repeat(3, 1fr); }
+.rail-tabs label {
+  text-align: center; padding: 13px 6px; cursor: pointer;
+  font-family: var(--disp); font-size: 11px; font-weight: 800;
+  letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3);
+  border-bottom: 2px solid var(--line); background: #f7faf9;
+  user-select: none;
+}
+.rail-tabs label:hover { color: var(--accent); }
+
+.rail-panel { display: none; }
+
+/* Pestaña marcada: se ilumina su etiqueta y aparece su panel. Todo el
+ * comportamiento del widget son estas seis reglas. */
+#rt-ultimas:checked ~ .rail-tabs label[for="rt-ultimas"],
+#rt-populares:checked ~ .rail-tabs label[for="rt-populares"],
+#rt-tendencias:checked ~ .rail-tabs label[for="rt-tendencias"] {
+  color: var(--accent); background: var(--paper); border-bottom-color: var(--accent);
+}
+#rt-ultimas:checked ~ .rail-panels #panel-ultimas,
+#rt-populares:checked ~ .rail-panels #panel-populares,
+#rt-tendencias:checked ~ .rail-panels #panel-tendencias { display: block; }
+
+.rail-radio:focus-visible ~ .rail-tabs label[for="rt-ultimas"],
+.rail-radio:focus-visible ~ .rail-tabs label[for="rt-populares"],
+.rail-radio:focus-visible ~ .rail-tabs label[for="rt-tendencias"] { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.rail-list { list-style: none; margin: 0; padding: 0; }
+.rail-item {
+  display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 12px;
+  padding: 14px; border-bottom: 1px solid var(--line);
+}
+.rail-item:last-child { border-bottom: 0; }
+.rail-item:only-child, .rail-item:has(.rail-text:only-child) { grid-template-columns: minmax(0, 1fr); }
+.rail-thumb { display: block; border-radius: 5px; overflow: hidden; }
+.rail-thumb img { display: block; width: 104px; height: 78px; object-fit: cover; }
+.rail-text { min-width: 0; }
+.rail-title {
+  display: block; margin-top: 6px; font-weight: 700; font-size: 14px;
+  line-height: 1.35; text-decoration: none; letter-spacing: -.01em;
+}
+.rail-title:hover { color: var(--accent); }
+.rail-meta {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  font-size: 11px; color: var(--ink-3); margin-top: 6px;
+}
+.rail-empty { padding: 22px 16px; font-size: 13px; color: var(--ink-3); }

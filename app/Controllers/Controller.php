@@ -55,6 +55,7 @@ abstract class Controller
                 'linkedin' => $site->get('social_linkedin', ''),
             ]),
             'shareButtons' => $site->bool('share_buttons', true),
+            'rail' => $this->rail(),
             // Bloques JSON-LD: siempre va el de WebSite; cada controlador
             // agrega el suyo.
             'jsonld' => [
@@ -64,6 +65,25 @@ abstract class Controller
                     (string) $site->get('meta_description', '')
                 ),
             ],
+        ];
+    }
+
+    /**
+     * Las tres listas de la barra lateral.
+     *
+     * Son tres consultas por render, y solo se pagan cuando la página no está
+     * en el caché: una página cacheada sale con la barra ya dibujada adentro.
+     *
+     * «Populares» y «Tendencias» salen de la analítica propia. En WordPress
+     * esas dos pestañas las llenaba un plugin que vuelve a contar las visitas
+     * por su cuenta; acá los números ya estaban medidos en el servidor.
+     */
+    private function rail(): array
+    {
+        return [
+            'ultimas' => $this->posts->withCategories($this->posts->published(5)),
+            'populares' => $this->posts->withCategories($this->posts->mostViewed(90, 5)),
+            'tendencias' => $this->posts->withCategories($this->posts->mostViewed(7, 5)),
         ];
     }
 
