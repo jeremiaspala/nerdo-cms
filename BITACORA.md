@@ -33,6 +33,59 @@ php -S 127.0.0.1:8080 -t public bin/router.php
 - **Credenciales locales**: `storage/CREDENCIALES-DEV.txt` (chmod 600) — **borrar antes de desplegar**
 - **Base del CMS**: `nerdadas_cms` · **Base origen WordPress**: `nerdadas_wp_src`
 
+### Google OAuth: qué hay creado y qué tocar en producción
+
+Configurado el 15/11/2026 desde la consola, con la cuenta de Jeremías.
+
+| Qué | Dónde |
+|---|---|
+| Proyecto | **Nerdadas** · `nerdadas-1744824396277` |
+| Pantalla de consentimiento | Google Auth Platform · app **«Nerdadas!»**, tipo **Externo**, estado **Prueba** |
+| Cliente OAuth | **«Nerdo CMS»**, tipo *Aplicación web* |
+| Usuario de prueba | jeremiaspalazzesi@gmail.com (único) |
+| Credenciales | Cargadas en el panel, en Configuración → Google. El secreto se guarda cifrado con la `APP_KEY` |
+
+URI de redirección que tiene cargadas hoy (solo desarrollo):
+
+```
+http://localhost:8080/panel/entrar/google/vuelta
+http://localhost:8080/comentarios/google/vuelta
+```
+
+**Al pasar a producción hay que hacer tres cosas, en este orden:**
+
+1. **Agregar las URI del dominio real** al mismo cliente «Nerdo CMS»
+   (Google Auth Platform → Clientes → Nerdo CMS → URI de redireccionamiento).
+   Google compara la URL completa carácter por carácter, así que importa si
+   es con o sin `www`, y la ruta del panel tiene que ser la real —la de
+   `ADMIN_PATH`, que en producción no debería ser `/panel`—:
+
+   ```
+   https://EL-DOMINIO/LA-RUTA-DEL-PANEL/entrar/google/vuelta
+   https://EL-DOMINIO/comentarios/google/vuelta
+   ```
+
+   Las de localhost pueden quedar: no molestan y sirven para seguir
+   probando.
+
+2. **Publicar la app** (Google Auth Platform → Público → «Publicar app»).
+   Mientras esté en **Prueba**, solo las cuentas de la lista de usuarios de
+   prueba pueden entrar — hoy, la de Jeremías—. Eso alcanza para el panel,
+   pero **no para que cualquiera comente con su cuenta**: para eso hay que
+   publicarla. Publicar exige completar la página de marca (logo, página
+   principal, política de privacidad y términos), y esas URL tienen que ser
+   públicas y del dominio real, así que no se puede hacer desde localhost.
+   Con los permisos que pide el CMS —`openid`, `email`, `profile`— no hace
+   falta que Google verifique la app.
+
+3. **Volver a cargar el ID y el secreto** en el panel de producción
+   (Configuración → Google): el `.env` de producción tiene otra `APP_KEY`,
+   y el secreto está cifrado con la de acá, así que no se puede copiar la
+   fila de la base.
+
+Si alguna vez hay que rotar el secreto: Clientes → Nerdo CMS → «Agregar
+secreto», se pega el nuevo en el panel y recién después se borra el viejo.
+
 ### Material de importación (`storage/import/`)
 
 | Archivo | Qué es |
@@ -584,3 +637,31 @@ campos de nombre y correo.
 
 Lo que no se pudo probar acá es la vuelta real de Google, que necesita un
 cliente OAuth de verdad: queda para cuando estén las credenciales.
+
+### 2026-11-15 (segunda parte)
+
+**Google OAuth configurado de verdad**, con la cuenta de Jeremías y desde la
+consola. Lo que hay creado y lo que hay que tocar en producción está arriba,
+en «Google OAuth: qué hay creado y qué tocar en producción», que es el lugar
+donde se va a buscar.
+
+Cosas que aparecieron al hacerlo:
+
+- El proyecto **Nerdadas** ya existía en la consola, vacío. Se usó ese en vez
+  de crear otro: la pantalla de consentimiento es por proyecto, así que meter
+  el cliente en «Hal9000» habría hecho que a quien comenta le apareciera
+  «Hal9000 quiere acceder a tu cuenta».
+- Para crear credenciales hay que aceptar la **Política de Datos del Usuario
+  de los Servicios de las APIs de Google**. Es un acuerdo legal a nombre del
+  dueño de la cuenta: se preguntó antes de tildarlo y Jeremías lo autorizó.
+- La app queda en **modo Prueba**, y en ese modo **solo entran las cuentas de
+  la lista de usuarios de prueba**. Se agregó la de Jeremías. Esto alcanza
+  para el panel pero no para la idea de que cualquiera comente con su
+  cuenta: eso necesita publicar la app, y publicar necesita el dominio real.
+- El usuario del CMS pasó de `jeremias@nerdadas.local` a
+  **jeremiaspalazzesi@gmail.com**, que es lo que permite que el login con
+  Google encuentre la cuenta. Sigue siendo el único usuario, y la contraseña
+  no cambió. `storage/CREDENCIALES-DEV.txt` quedó actualizado.
+- **La extensión del navegador no puede operar en `accounts.google.com`**, así
+  que el paso de elegir la cuenta y aceptar los permisos lo tiene que hacer
+  una persona. Era de esperar y está bien que sea así.
