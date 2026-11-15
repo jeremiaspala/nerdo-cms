@@ -1,0 +1,20 @@
+# Secretos y estado local: nunca al repositorio.
+/.env
+/storage/CREDENCIALES-DEV.txt
+
+# Escribible en ejecución.
+/storage/cache/
+/storage/logs/
+/storage/sessions/
+/storage/tmp/
+
+# Lo que sube el usuario. El material de importación se guarda aparte.
+/public/uploads/*
+!/public/uploads/.htaccess
+
+# Volcados y originales de la migración: pesan y tienen datos personales
+# (correos de quienes comentaron). No van al repositorio.
+/storage/import/
+
+/vendor/
+*.log

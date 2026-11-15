@@ -1,0 +1,271 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Consola del CMS.
+ *
+ * Todo lo que es administración de verdad vive acá y no en una pantalla web:
+ * crear usuarios, migrar, importar. Menos superficie expuesta.
+ */
+
+if (PHP_SAPI !== 'cli') {
+    exit("Solo por consola.\n");
+}
+
+$app = require dirname(__DIR__) . '/app/bootstrap.php';
+
+$command = $argv[1] ?? 'help';
+$args = array_slice($argv, 2);
+
+function opt(array $args, string $name, ?string $default = null): ?string
+{
+    foreach ($args as $arg) {
+        if (str_starts_with($arg, "--{$name}=")) {
+            return substr($arg, strlen($name) + 3);
+        }
+    }
+
+    return $default;
+}
+
+function out(string $msg): void
+{
+    echo $msg, "\n";
+}
+
+try {
+    switch ($command) {
+        case 'migrate':
+            $db = $app->db;
+            $db->run('CREATE TABLE IF NOT EXISTS migrations (
+                        name VARCHAR(190) NOT NULL,
+                        ran_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (name)
+                      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+
+            $done = array_column($db->select('SELECT name FROM migrations'), 'name');
+            $files = glob(ROOT . '/migrations/*.sql') ?: [];
+            sort($files);
+
+            $ran = 0;
+            foreach ($files as $file) {
+                $name = basename($file);
+                if (in_array($name, $done, true)) {
+                    continue;
+                }
+
+                out("  → {$name}");
+
+                // Las migraciones son DDL: MySQL hace commit implícito, así que
+                // no sirve envolverlas en una transacción. Se corren tal cual y
+                // se registran solo si terminaron.
+                $sql = (string) file_get_contents($file);
+                $db->pdo()->exec($sql);
+                $db->run('INSERT INTO migrations (name) VALUES (:n)', ['n' => $name]);
+                $ran++;
+            }
+
+            out($ran === 0 ? 'Sin migraciones pendientes.' : "Listo: {$ran} migración(es).");
+            break;
+
+        case 'migrate:status':
+            $done = array_column($app->db->select('SELECT name, ran_at FROM migrations ORDER BY name'), 'ran_at', 'name');
+            foreach (glob(ROOT . '/migrations/*.sql') ?: [] as $file) {
+                $name = basename($file);
+                out(sprintf('  %-28s %s', $name, $done[$name] ?? 'PENDIENTE'));
+            }
+            break;
+
+        case 'user:create':
+            $email = opt($args, 'email') ?? '';
+            $name = opt($args, 'name') ?? 'Jeremías Palazzesi';
+            $role = opt($args, 'role', 'admin');
+
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                exit("Usá: console user:create --email=vos@dominio --name=\"Tu Nombre\"\n");
+            }
+
+            // La contraseña no se pasa por argumento: quedaría en el historial
+            // del shell y en la lista de procesos.
+            echo 'Contraseña (no se muestra): ';
+            shell_exec('stty -echo 2>/dev/null');
+            $pass = trim((string) fgets(STDIN));
+            shell_exec('stty echo 2>/dev/null');
+            echo "\n";
+
+            if (strlen($pass) < 12) {
+                exit("Mínimo 12 caracteres.\n");
+            }
+
+            $app->db->insert('users', [
+                'email' => strtolower($email),
+                'name' => $name,
+                'pass_hash' => password_hash($pass, PASSWORD_ARGON2ID),
+                'role' => $role,
+            ]);
+
+            out("Usuario creado: {$email} ({$role})");
+            break;
+
+        case 'import:wp':
+            $dsn = opt($args, 'db');
+            $uploads = opt($args, 'uploads');
+
+            if ($dsn === null || $uploads === null) {
+                out('Uso:');
+                out('  console import:wp --db="mysql:host=127.0.0.1;dbname=nerdadas_wp_src;charset=utf8mb4" \\');
+                out('                    --user=USUARIO [--pass=CLAVE] [--prefix=wpcj_] \\');
+                out('                    --uploads=/ruta/a/wp-content/uploads \\');
+                out('                    [--old-prefix=/blog/] [--hosts=www.nerdadas.com,nerdadas.com] \\');
+                out('                    [--dry-run]');
+                exit(1);
+            }
+
+            $src = new App\Core\Db(
+                $dsn,
+                (string) opt($args, 'user', 'root'),
+                (string) opt($args, 'pass', ''),
+                (new DateTimeImmutable('now'))->format('P')
+            );
+
+            $hosts = array_map(
+                'strtolower',
+                array_filter(explode(',', (string) opt($args, 'hosts', 'www.nerdadas.com,nerdadas.com')))
+            );
+
+            $importer = new App\Services\WordPressImporter(
+                app: $app,
+                src: $src,
+                prefix: (string) opt($args, 'prefix', 'wpcj_'),
+                uploadsDir: rtrim($uploads, '/'),
+                sourceHosts: $hosts,
+                oldPathPrefix: (string) opt($args, 'old-prefix', '/blog/'),
+                dryRun: in_array('--dry-run', $args, true),
+                fetchExternal: in_array('--fetch-external', $args, true),
+            );
+
+            $t0 = microtime(true);
+            $stats = $importer->run(static fn (string $m) => out($m));
+
+            out('');
+            out('--- resumen ---');
+            ksort($stats);
+            foreach ($stats as $k => $v) {
+                out(sprintf('  %-34s %d', $k, $v));
+            }
+            out(sprintf('  %-34s %.1f s', 'tiempo', microtime(true) - $t0));
+            break;
+
+        case 'seed:demo':
+            require ROOT . '/bin/seed_demo.php';
+            seed_demo($app);
+            break;
+
+        case 'analytics:aggregate':
+            $day = opt($args, 'day');
+            $r = $app->analytics->aggregate($day);
+            out(sprintf('Día %s agregado. Detalle borrado: %d filas (retención %d días).',
+                $r['dia'], $r['detalle_borrado'], $r['retencion_dias']));
+            break;
+
+        case 'analytics:summary':
+            $days = (int) opt($args, 'days', '30');
+            $s = $app->analytics->summary($days);
+            out(sprintf('Últimos %d días: %d vistas · %d visitantes · %d páginas',
+                $days, $s['vistas'], $s['visitantes'], $s['paginas']));
+            out('');
+            out('Más vistas:');
+            foreach ($app->analytics->topPosts($days, 10) as $row) {
+                out(sprintf('  %6d  %s', $row['vistas'], $row['title'] ?? $row['path']));
+            }
+            out('');
+            out('De dónde llegan:');
+            foreach ($app->analytics->topReferers($days, 8) as $row) {
+                out(sprintf('  %6d  %s', $row['vistas'], $row['host']));
+            }
+            break;
+
+        case 'cache:clear':
+            $n = $app->pages->purgeAll();
+            out("Caché de página vaciado: {$n} archivo(s).");
+            break;
+
+        case 'cache:refresh':
+            // Una entrada programada se vuelve visible sola cuando NOW()
+            // pasa su fecha, y eso no dispara ninguna invalidación: la
+            // portada cacheada la seguiría ocultando hasta que venza el TTL.
+            // Este comando va por cron con el mismo intervalo con el que
+            // corre, y solo vacía si algo se publicó en ese rato.
+            $minutes = max(1, (int) opt($args, 'minutes', '15'));
+
+            $recien = (int) $app->db->value(
+                "SELECT COUNT(*) FROM posts
+                  WHERE status = 'published'
+                    AND published_at <= NOW()
+                    AND published_at > DATE_SUB(NOW(), INTERVAL :m MINUTE)",
+                ['m' => $minutes]
+            );
+
+            if ($recien === 0) {
+                out("Sin publicaciones nuevas en los últimos {$minutes} min. El caché queda como está.");
+                break;
+            }
+
+            $n = $app->pages->purgeAll();
+            out("Se publicaron {$recien} entrada(s) programada(s): caché vaciado ({$n} archivo(s)).");
+            break;
+
+        case 'cache:stats':
+            $s = $app->pages->stats();
+            out(sprintf(
+                'Caché: %s · %d archivo(s) · %s KB · más viejo: %s · TTL %d s',
+                $app->pages->enabled() ? 'encendido' : 'apagado',
+                $s['archivos'],
+                number_format($s['bytes'] / 1024, 1),
+                $s['mas_viejo'] ?? '—',
+                $app->pages->ttl()
+            ));
+            break;
+
+        case 'gc':
+            $sessions = (int) $app->db->run(
+                'DELETE FROM sessions WHERE expires_at < NOW() OR absolute_expires_at < NOW()'
+            )->rowCount();
+            $limits = $app->limiter->purge();
+            $nonces = (new App\Services\Spam($app))->purgeNonces();
+            out("Sesiones vencidas: {$sessions} · Límites viejos: {$limits} · Desafíos gastados: {$nonces}");
+            break;
+
+        case 'routes':
+            out('Rutas registradas (ver Kernel::registerRoutes):');
+            out('  GET  /');
+            out('  GET  /categoria/{slug}');
+            out('  GET  /archivo/{año}[/{mes}]');
+            out('  GET  /buscar?q=');
+            out('  GET  /salud');
+            out('  GET  /p/{slug}        (páginas)');
+            out('  GET  /comentarios/desafio?e={id}');
+            out('  POST /comentarios');
+            out('  GET  /contacto/desafio');
+            out('  POST /contacto');
+            out('  GET  /{slug}          (entradas)');
+            break;
+
+        default:
+            out('Comandos:');
+            out('  migrate          aplica las migraciones pendientes');
+            out('  migrate:status   qué se corrió y qué falta');
+            out('  user:create      --email= --name= [--role=admin]');
+            out('  seed:demo        contenido de prueba para ver el tema');
+            out('  gc               limpia sesiones, límites y desafíos vencidos');
+            out('  cache:clear      vacía el caché de página');
+            out('  cache:stats      qué hay guardado y con qué antigüedad');
+            out('  cache:refresh    [--minutes=15] vacía si se publicó algo programado');
+            out('  routes           lista las rutas');
+    }
+} catch (Throwable $e) {
+    fwrite(STDERR, 'ERROR: ' . $e->getMessage() . "\n" . $e->getFile() . ':' . $e->getLine() . "\n");
+    exit(1);
+}

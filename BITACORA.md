@@ -1,0 +1,328 @@
+# Bitácora — Nerdo CMS
+
+Registro de qué se hizo, por qué, y qué sigue. Para retomar sin releer código.
+
+---
+
+## Cómo retomar
+
+El Apache local ya sirve el proyecto en el puerto 8080
+(`/etc/apache2/sites-available/nerdadas.conf`). Alcanza con que esté
+levantado:
+
+```bash
+sudo systemctl reload apache2
+```
+
+El `DocumentRoot` apunta a `public/` y no a la raíz del proyecto, así que
+**no puede ir como `Alias /nerdadas` dentro del vhost por defecto**: todas las
+rutas absolutas del CMS (`/panel`, `/uploads`, `/assets`) caerían fuera de la
+aplicación. Para el servidor embebido de PHP, que sigue sirviendo:
+
+```bash
+php -S 127.0.0.1:8080 -t public bin/router.php
+```
+
+- **Sitio**: http://localhost:8080
+- **Panel**: http://localhost:8080/panel
+- **Credenciales locales**: `storage/CREDENCIALES-DEV.txt` (chmod 600) — **borrar antes de desplegar**
+- **Base del CMS**: `nerdadas_cms` · **Base origen WordPress**: `nerdadas_wp_src`
+
+### Material de importación (`storage/import/`)
+
+| Archivo | Qué es |
+|---|---|
+| `nerdadas_wp.sql.gz` | Volcado de WordPress sin las 970 revisiones (509 KB) |
+| `uploads-originales.txt` | Lista de los 781 originales, para re-rsync |
+| `head-back.jpg` | Imagen del encabezado original |
+
+Las **781 imágenes originales (234 MB)** están en un directorio temporal que
+el sistema puede limpiar solo. No es grave: ya están importadas y procesadas
+en `public/uploads`. Si hiciera falta re-importar desde cero:
+
+```bash
+rsync -az --files-from=storage/import/uploads-originales.txt \
+  -e ssh nerdadas:public_html/blog/wp-content/uploads/ /ruta/destino/
+```
+
+---
+
+## Estado
+
+| Fase | Qué incluye | Estado |
+|---|---|---|
+| 1 | Núcleo: Kernel, Router, Db, Session, Csrf, Security, RateLimit, View | hecho |
+| 2a | Login argon2id + bloqueo, panel, CRUD entradas y páginas, editor Quill, saneador | hecho |
+| 2b | Galería, subida con reprocesado, destacada, srcset, og:image | hecho |
+| 4 | Importador de WordPress | hecho |
+| 5 | feed.xml, sitemap.xml, robots.txt, JSON-LD | hecho |
+| 7 | Analítica propia sin cookies + panel con gráfico | hecho |
+| — | Configuración por secciones, correo mail()/SMTP, encabezado con foto, video embebido | hecho |
+| 6 | Comentarios: frente, antispam en capas, cola de moderación | hecho |
+| 3 | Caché de página + fuentes autoalojadas | hecho |
+| **8** | **Instalador, TOTP, endurecido final** | **pendiente** |
+| — | Formulario de contacto | hecho |
+
+**Contenido migrado**: 145 entradas publicadas + 22 borradores, 4 páginas,
+28 categorías, 49 comentarios, 554 imágenes, 342 redirecciones 301.
+Rango: 2011-10-14 → 2026-11-14.
+
+---
+
+## Próximos pasos, en orden
+
+### 1. Instalador y endurecido (fase 8) — ~3 días
+
+1. `install.php` que verifica requisitos, crea el esquema, genera `APP_KEY` y
+   `HASH_PEPPER`, pide la ruta del panel y **se borra solo**.
+2. TOTP obligatorio para el rol admin.
+3. Listado de sesiones activas en el panel, con botón de revocar.
+4. Reglas de `fail2ban` y el vhost de producción, ya escritos en el README.
+
+### 2. Despliegue
+
+Recién cuando lo anterior esté. El sitio nuevo en un subdominio, los dos
+conviviendo unos días, comparar peticiones y errores, y después mover el DNS.
+
+---
+
+## Decisiones que no conviene revertir
+
+- **Un solo punto de entrada.** Todo pasa por `public/index.php`; el resto
+  vive sobre el `DocumentRoot`.
+- **CSP sin `unsafe-inline`.** Por eso no hay un solo `style=""` ni
+  `onclick=""` en las plantillas, ni en el panel. Si algo necesita un ancho
+  variable, va por clase (ver `.bartrack i.w*`).
+- **`frame-src` solo a `youtube-nocookie.com` y `player.vimeo.com`**, y el
+  saneador aplica el mismo recorte con `SafeIframe`. Dos barreras para lo
+  único de terceros que entra a la página.
+- **El saneado es al guardar, no al mostrar.** `body_html` es lo único que se
+  imprime sin escapar.
+- **Las imágenes se re-codifican con GD**, nunca se guardan como llegan, y el
+  nombre sale del SHA-256.
+- **PHP y la base comparten zona horaria**, fijada por conexión en `Db`.
+- **El visitante anónimo no recibe cookie** — condición para que el caché de
+  página sirva a todos por igual.
+- **La fecha va dentro de `visitor_hash`**: es lo que hace que la analítica no
+  sea seguimiento y no necesite banner.
+- **El formulario de comentarios no usa token de sesión.** Usa un desafío
+  firmado con la `APP_KEY`, emitido por `GET /comentarios/desafio`. Un token
+  CSRF clásico vive en la sesión, la sesión implica cookie, y hay dos reglas
+  que lo impiden: el visitante anónimo no recibe cookie y la página se sirve
+  cacheada igual para todos (un token de sesión incrustado en el HTML sería
+  el token de otra persona). Falsificar el desafío exige la `APP_KEY`.
+- **El desafío resuelto se gasta una sola vez** (`comment_nonces`, con UNIQUE).
+  Es el precio de no guardar nada al emitirlo.
+- **Los comentarios se escriben en texto plano**, se escapan y recién ahí se
+  convierten a HTML. El visitante no puede mandar etiquetas, y las URLs del
+  cuerpo no se convierten en enlaces: es la mitad del incentivo del spam.
+- **Sin Gravatar.** El avatar son iniciales dibujadas con CSS. Pedirle la
+  imagen a un tercero filtra, en cada visita y por cada lector, el hash de
+  correo de quien comentó y la IP de quien lee, y obligaría a abrir `img-src`.
+- **Quien pide JSON recibe JSON, también en los errores** (`Kernel::wantsJson`).
+- **El caché de página existe porque el visitante anónimo no recibe cookie.**
+  Es la misma decisión mirada al revés: sin marca por visitante, una sola
+  copia del HTML sirve para todos. Si algún día se agrega algo personalizado
+  por visitante, hay que sacarlo del HTML cacheado o el caché se convierte en
+  una fuga.
+- **El nonce no se guarda en el caché.** Se reemplaza por una marca al
+  guardar y por el nonce de este request al servir. Un nonce cacheado es un
+  nonce fijo, y un nonce fijo no es un nonce.
+- **ETag solo donde no hay nonce** (feed, sitemap, robots). Una etiqueta que
+  dijera «idéntico» sobre HTML que cambia en cada request mentiría.
+- **La analítica se sigue contando en un acierto de caché**: el id de entrada
+  viaja en la cabecera del archivo cacheado. Si no, encender el caché haría
+  caer la medición a cero y parecería un problema de medición.
+- **El formulario de contacto guarda y además manda.** Contact Form 7 solo
+  manda: si el correo falla, el mensaje no existió para nadie —ni para quien
+  lo escribió, que vio un «gracias»—. El correo es el aviso; la tabla es el
+  soporte.
+- **No se le contesta nada automático a quien escribe.** Un acuse al
+  remitente convierte el formulario en una forma de mandarle correo a
+  cualquiera desde este servidor.
+- **El From del correo es siempre el del sitio, nunca el de quien escribió.**
+  Falsificar el remitente es lo que hace que SPF y DMARC manden el aviso a
+  spam. Para contestar está Reply-To.
+- **En contacto el correo sí se guarda en claro**, al revés que en los
+  comentarios: ahí es un dato de más que solo sirve para reconocer a alguien,
+  acá es la dirección a la que hay que contestar. Guardar un hash sería
+  guardar algo inservible.
+- **Las tipografías se autoalojan.** Google Fonts no entra en `font-src
+  'self'` y, además, le entrega a Google la IP y el user-agent de cada lector
+  en cada visita — exactamente lo que se sacó al reemplazar Analytics.
+
+---
+
+## Bitácora
+
+### 2026-11-14
+
+**Migración y decisión de plataforma.** Se evaluó dejar WordPress. Se
+descartaron Hugo/Astro: el stack propio en PHP conserva Apache, PHP y MariaDB,
+que es lo que ya administra Jeremías. Tema elegido: **Teal**, la variante más
+cercana a la estética actual.
+
+**Fases 1 a 7, salvo 3 y 6.** Núcleo, panel con editor WYSIWYG, medios,
+importador, SEO y analítica.
+
+**Bugs encontrados y corregidos** (vale tenerlos escritos, varios eran
+silenciosos):
+
+| Bug | Consecuencia si no se veía |
+|---|---|
+| PHP y MariaDB en zonas horarias distintas | Entradas programadas invisibles, sesiones y límites de tasa desfasados |
+| `LIMIT :limit` como string con `EMULATE_PREPARES=false` | Error de sintaxis SQL |
+| `HEAD` devolvía 405 | Rompe monitores y rastreadores |
+| Cada request anónimo al panel creaba fila en `sessions` | Llenar la tabla con un bucle de curl |
+| Sesiones sin `user_id` | No se podían revocar |
+| `HTML.Doctype => 'HTML 5'` no existe en HTMLPurifier | Borraba las 122 `<figure>` sin avisar |
+| 64 entradas con enlaces al WordPress viejo | Morían al apagar WordPress |
+| `URI.DisableExternalResources` bloqueaba también el iframe de video | Sin YouTube |
+| `AutoFormat.RemoveEmpty` borraba los `<iframe>` | Sin YouTube |
+| `style=""` en el panel | Bloqueado por la propia CSP |
+| `hidden` no oculta en SVG | Puntos sueltos en el gráfico |
+| Eje Y en 38/75/113/150 | Ilegible |
+
+**Hallazgo fuera de alcance**: el puerto **3306 de nerdadas.com acepta
+conexiones TCP desde internet**. El control de acceso rechaza por host, así
+que no es una puerta abierta, pero filtra la versión del servidor y convierte
+cualquier error futuro de permisos en un incidente. Conviene filtrarlo.
+
+**Plugins de WordPress que este CMS reemplaza**: `advanced-google-recaptcha`
+(hecho, sin Google), `autodescription` (hecho), `ga-google-analytics` (hecho),
+`wp-super-cache` (fase 3), `wps-hide-login` (hecho, ruta configurable),
+`contact-form-7` (pendiente).
+
+**Datos de prueba**: se generaron 1.722 visitas falsas para probar el gráfico
+de analítica y **se borraron**. El panel está en cero a propósito.
+
+### 2026-11-14 (segunda parte)
+
+**Fase 6, comentarios.** Completa: frente, antispam, moderación.
+
+Archivos nuevos: `app/Services/Spam.php`, `app/Models/Comment.php`,
+`app/Controllers/Front/CommentController.php`,
+`app/Controllers/Admin/CommentsController.php`,
+`themes/teal/templates/comments.php` y `comment.php`,
+`app/Admin/views/comments.php`, `public/assets/js/comments.js`,
+`migrations/003_comments.sql`.
+
+Las ocho guardas, en orden, son las que estaban planificadas: desafío firmado
+(hace de CSRF) → límite de tasa → campo trampa → piso de tiempo de 8 s →
+origen → prueba de trabajo → validación → puntaje. El puntaje queda guardado
+con sus razones en texto, visibles en el panel.
+
+**La prueba de trabajo lleva un SHA-256 propio en JavaScript.** La duda que
+estaba anotada quedó resuelta a favor de la implementación síncrona:
+`crypto.subtle` devuelve una promesa por hash y 262.000 promesas cuestan
+segundos, no milisegundos. Como el mensaje es siempre de un bloque (nonce de
+32 caracteres más un contador), la compresión entra en cincuenta líneas.
+Medido: **547.000 hashes por segundo**, o medio segundo a 18 bits, y
+verificado contra el SHA-256 de Node en 500 entradas al azar.
+
+**Bugs encontrados y corregidos:**
+
+| Bug | Consecuencia si no se veía |
+|---|---|
+| `php_admin_flag` en `public/uploads/.htaccess` | Apache no lo admite en un .htaccess: **500 en todas las imágenes del sitio**. La capa 1 se movió al vhost y en el .htaccess quedó `php_flag` |
+| El 429 del límite de tasa devolvía HTML a un endpoint JSON | El formulario mostraba «se cortó la conexión» en lugar del motivo real |
+| `[hidden]` lo pisaba cualquier `display` explícito | El «Cancelar la respuesta» se veía siempre. Misma familia que el bug del gráfico |
+| `css` y `js` servidos `immutable` por un año, sin hash en el nombre | Un cambio de estilo no le llega nunca a quien ya visitó. Se agregó `asset()` con la marca de tiempo del archivo |
+| El importador leía `comment_parent` y no lo usaba | Los 49 comentarios importados quedaron planos: 10 eran respuestas. Se corrigió el importador y se reconstruyeron los `parent_id` verificando autor y fecha uno por uno |
+
+**Probado**: envío correcto, reenvío del mismo desafío (409), campo trampa,
+envío instantáneo, prueba de trabajo inválida, firma alterada, cuerpo vacío,
+correo inválido, cuatro enlaces (85 puntos → spam), entrada fuera de la
+ventana de 90 días, origen ajeno, los dos límites de tasa, hilo anidado,
+moderación desde el panel de a uno y en lote, y el circuito completo en
+Chrome: desafío, resolución en 0,6 s, publicación directa de un comentarista
+conocido e inserción en el lugar correcto del hilo sin recargar.
+
+### 2026-11-14 (tercera parte)
+
+**Fase 3: caché de página y tipografías propias.**
+
+`app/Services/PageCache.php` guarda el HTML de los visitantes anónimos en
+`storage/cache/pages/` y lo devuelve antes del router. Reemplaza a
+`wp-super-cache`. La clave es la ruta más el número de página; cualquier otro
+parámetro de query deja el request fuera del caché en vez de crear una clave
+nueva, que es como se llena un disco gratis. Nunca se guarda ni se sirve si
+hay cookie de sesión, y las rutas cacheables son una lista explícita.
+
+**Medido**, con conexión reusada para que no lo tape el arranque de curl:
+
+| | mediana | p90 |
+|---|---|---|
+| Entrada sin caché | 5,2 ms | 6,7 ms |
+| Entrada desde el caché | 2,2 ms | 3,3 ms |
+| Archivo estático (piso de Apache) | 0,2 ms | 0,4 ms |
+
+Invalidación: vaciado completo al publicar, editar, mandar a papelera,
+restaurar, cambiar un ajuste o tocar una imagen; selectivo —solo la entrada
+afectada— al moderar comentarios, que es lo que más pasa.
+
+**Tipografías**: Inter y Montserrat salen del propio dominio. Inter va como
+fuente variable con el eje de peso recortado a 400–800 y el óptico fijo en
+16: **70 KB cubren todos los pesos**, contra 149 KB sin recortar y 111 KB por
+cada peso estático sin subsetear. De Montserrat quedaron los dos pesos que el
+tema usa (700 y 800). Todo subseteado a latin + latin-ext con fontTools, sin
+paso de compilación en el proyecto: los woff2 ya están en
+`public/assets/fonts/` con sus licencias.
+
+**Bugs y hallazgos:**
+
+| Qué | Consecuencia |
+|---|---|
+| `shareViewDefaults()` corría en el constructor del Kernel | Dos consultas (ajustes y categorías) en **cada** request, incluidos los que se sirven del caché sin renderizar nada. Ahora se arma solo al renderizar un error: bajó también el camino sin caché, de 6,6 a 5,2 ms |
+| Una entrada programada no dispara ninguna invalidación | Se publica sola cuando pasa su fecha y la portada cacheada la seguiría ocultando hasta que venza el TTL. Se agregó `cache:refresh`, que va por cron y vacía solo si algo se publicó en el intervalo |
+| La primera visita se iba sin ETag | `PageCache::store()` ahora devuelve la respuesta con la etiqueta ya puesta, así el primer lector de feeds ya puede revalidar |
+
+**Probado**: acierto y fallo, sustitución del nonce en requests sucesivos
+(CSP y HTML coinciden siempre), 304 contra `If-None-Match` por acierto y por
+fallo, que no se cachee nada con sesión, ni `/buscar`, ni un 404, ni
+`/salud`, ni con `?utm_source=`, que sí se cacheen portada, entrada,
+categoría, paginación, feed y sitemap conservando su Content-Type, la
+invalidación al aprobar un comentario, las redirecciones 301 de WordPress
+intactas, y en Chrome: sin violaciones de CSP sobre una página servida del
+caché, los tres JSON-LD con nonce válido, TTFB de 9 ms y las fuentes bajando
+del propio dominio (70 + 34 + 33 KB).
+
+### 2026-11-14 (cuarta parte)
+
+**Formulario de contacto.** Reemplaza a Contact Form 7, que era el último
+plugin de la lista.
+
+El formulario no tiene ruta propia: se dibuja dentro de la página que diga
+`settings.contact_page` (por defecto `contacto`, que es la URL que ya estaba
+indexada), debajo del texto que se edite ahí como en cualquier página. La
+página había quedado vacía en la importación porque solo tenía el shortcode.
+
+Mismas ocho capas que los comentarios. El alcance del desafío firmado pasó a
+ser genérico: el id de la entrada para comentar, `0` para contacto. **Un
+desafío emitido para comentar no sirve para mandar un mensaje** —probado— y
+al revés, porque el alcance viaja adentro de la firma.
+
+**Refactor**: el SHA-256 y el solucionador salieron de `comments.js` a
+`public/assets/js/pow.js`, que es donde la bitácora los había planeado desde
+el principio. Los dos formularios lo cargan; el resto del sitio sigue sin una
+línea de JavaScript. Verificado de nuevo contra el SHA-256 de Node en 500
+entradas al azar, y los comentarios siguen funcionando en Chrome.
+
+**Lo que se guarda y lo que se manda**: el mensaje entra en `messages` y
+además sale un correo de aviso con `Reply-To` apuntando a quien escribió. Si
+el correo falla —`mail()` devuelve false sin lanzar nada, que es la forma más
+común de perder un mensaje sin enterarse— queda en el log y la bandeja lo
+muestra con el cartel «no se pudo avisar por correo». Acá en local no hay MTA
+y el camino se probó justamente así.
+
+Bandeja nueva en el panel (`/panel/mensajes`): nuevos, leídos, archivados y
+spam, acciones de a uno o en lote, contador en la barra y en el escritorio.
+Contestar se contesta por `mailto:` desde el cliente de correo; meter un
+editor de respuestas sería construir medio webmail.
+
+**Probado**: envío correcto desde curl y desde Chrome, campo trampa, mensaje
+demasiado corto, correo inválido, **salto de línea en el asunto** (inyección
+de cabeceras: cortado antes del Mailer), desafío de comentarios reusado en
+contacto (400), envío instantáneo, cuatro enlaces (50 puntos → spam, y a
+quien lo mandó se le contesta lo mismo que a cualquiera), y en el panel:
+marcar leído de a uno con el contador bajando.

@@ -1,0 +1,470 @@
+/* Tema Teal — la variante elegida del previsualizador.
+ *
+ * Las tipografías se sirven desde este mismo dominio. No es una preferencia:
+ * la CSP no admite recursos de terceros, y Google Fonts —además de no entrar
+ * en `font-src 'self'`— le entrega a Google la IP y el user-agent de cada
+ * persona que lee el blog, en cada visita. Autoalojarlas es lo mismo que
+ * hace la analítica propia: que nadie de afuera sepa quién leyó qué.
+ *
+ * Los archivos están subseteados a latin + latin-ext, que es lo que este
+ * blog escribe. De Montserrat van solo los dos pesos que el tema usa de
+ * verdad —700 y 800—: el 400 no lo pide ninguna regla, y la marca, que pide
+ * 900, cae en el 800. Inter viene como fuente variable con un solo eje de peso de
+ * 400 a 800 y el eje óptico fijo en 16: un archivo de 70 KB cubre todos los
+ * pesos del tema, contra 111 KB por cada peso estático sin subsetear.
+ */
+
+@font-face {
+  font-family: "Inter";
+  src: url("/assets/fonts/inter-var-4.1.woff2") format("woff2-variations"),
+       url("/assets/fonts/inter-var-4.1.woff2") format("woff2");
+  font-weight: 400 800;
+  font-style: normal;
+  /* El texto se lee desde el primer frame con la tipografía del sistema y
+   * cambia cuando llega la propia. Un blog es texto: esconderlo mientras
+   * baja una fuente es esconder lo único que la persona vino a buscar. */
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("/assets/fonts/montserrat-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("/assets/fonts/montserrat-800.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --brand-a: #00514c;
+  --brand-b: #008a80;
+  --brand-c: #00a99b;
+  --accent: #008a80;
+  --accent-ink: #fff;
+  --nav-bg: #00413d;
+  --nav-fg: #87bdb7;
+  --nav-mark: #5ee3d2;
+
+  --paper: #fff;
+  --ink: #15201e;
+  --ink-b: #2b3a38;
+  --ink-2: #5c706d;
+  --ink-3: #869996;
+  --line: #e6eceb;
+
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --disp: "Montserrat", var(--sans);
+  --mono: ui-monospace, SFMono-Regular, Menlo, "JetBrains Mono", monospace;
+
+  --wrap: 1180px;
+  --gut: max(16px, env(safe-area-inset-left, 0px));
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { font-family: var(--disp); margin: 0; line-height: 1.22; text-wrap: balance; }
+p { margin: 0; }
+img { max-width: 100%; height: auto; }
+
+a { color: inherit; }
+a:focus-visible, input:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ---------- masthead ---------- */
+.mast {
+  background: linear-gradient(118deg, var(--brand-a), var(--brand-b) 58%, var(--brand-c));
+  padding-block: 26px 22px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Con foto: la imagen va en un <img> de fondo y el degradé encima.
+   Un <img> y no background-image porque la CSP no admite estilos en línea,
+   y de paso el navegador puede elegir el tamaño del srcset. */
+.mast-photo { padding-block: 44px 38px; }
+.mast-bg {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; z-index: -2;
+}
+.mast-photo::before {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(118deg, var(--brand-a), var(--brand-b) 58%, var(--brand-c));
+  opacity: var(--overlay, .82);
+}
+.mast-photo[data-overlay="suave"] { --overlay: .62; }
+.mast-photo[data-overlay="medio"] { --overlay: .82; }
+.mast-photo[data-overlay="fuerte"] { --overlay: .93; }
+.mast-photo .brand { text-shadow: 0 2px 14px rgba(0, 30, 28, .5); }
+.mast-photo .tagline { color: #c6ece7; text-shadow: 0 1px 10px rgba(0, 30, 28, .5); }
+
+.mast-in {
+  max-width: var(--wrap); margin-inline: auto; padding-inline: var(--gut);
+  position: relative;
+}
+.brand {
+  font-family: var(--disp); font-weight: 900; font-size: clamp(26px, 5vw, 32px);
+  letter-spacing: -.025em; color: #fff; text-decoration: none; line-height: 1;
+}
+.tagline { color: #a9ded8; font-size: 13px; margin-top: 7px; font-style: italic; }
+
+/* ---------- nav ---------- */
+.nav { background: var(--nav-bg); }
+.nav-in {
+  max-width: var(--wrap); margin-inline: auto; padding-inline: var(--gut);
+  display: flex; gap: 2px; align-items: center; overflow-x: auto; scrollbar-width: none;
+}
+.nav-in::-webkit-scrollbar { display: none; }
+.nav-in a {
+  padding: 12px 13px; font-size: 11.5px; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--nav-fg); text-decoration: none;
+  white-space: nowrap; border-bottom: 3px solid transparent;
+}
+.nav-in a:hover { color: #fff; }
+.nav-in a.on { color: #fff; border-bottom-color: var(--nav-mark); }
+.nav-search { margin-left: auto; padding-left: 14px; }
+.nav-search input {
+  background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 4px; color: #fff; font: inherit; font-size: 12.5px;
+  padding: 5px 10px; width: 150px;
+}
+.nav-search input::placeholder { color: #7fb0aa; }
+
+/* ---------- avisos ---------- */
+.flash {
+  max-width: var(--wrap); margin: 14px auto 0; padding: 11px 16px;
+  border-radius: 6px; font-size: 14px;
+  background: #e6f4f2; border: 1px solid #b9ded9; color: #00514c;
+}
+.flash-error { background: #fdecea; border-color: #f3c6c1; color: #8e2a1f; }
+
+/* ---------- listados ---------- */
+main { max-width: var(--wrap); margin-inline: auto; padding-inline: var(--gut); }
+
+.eyebrow {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.pagehead { padding-block: 32px 10px; border-bottom: 1px solid var(--line); }
+.pagehead h1 { font-size: clamp(24px, 4.4vw, 34px); font-weight: 800; letter-spacing: -.022em; margin-top: 7px; }
+.pagehead-desc { color: var(--ink-2); margin-top: 9px; max-width: 62ch; }
+
+.hero { padding-block: 34px 28px; border-bottom: 1px solid var(--line); }
+.hero-img {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: center;
+}
+.hero-media { display: block; border-radius: 8px; overflow: hidden; }
+.hero-pic { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
+.hero-img .hero-h2 { max-width: none; }
+
+.card-media { display: block; border-radius: 6px; overflow: hidden; margin-bottom: 12px; }
+.card-pic { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
+
+.entry-media { margin: 24px 0 0; }
+.entry-pic {
+  display: block; width: 100%; border-radius: 8px; aspect-ratio: 16 / 9; object-fit: cover;
+}
+.entry-media figcaption {
+  font-size: 12.5px; color: var(--ink-3); margin-top: 9px; line-height: 1.5;
+}
+.hero h2 { font-size: clamp(25px, 5vw, 40px); font-weight: 800; letter-spacing: -.025em; margin: 11px 0 12px; max-width: 20ch; }
+.hero h2 a { text-decoration: none; }
+.hero h2 a:hover { color: var(--accent); }
+.hero-excerpt { font-size: 17px; color: var(--ink-2); max-width: 62ch; }
+
+.chips { display: flex; gap: 5px; flex-wrap: wrap; margin: 0; }
+.chip {
+  background: var(--accent); color: var(--accent-ink); font-size: 9.5px; font-weight: 800;
+  letter-spacing: .09em; text-transform: uppercase; padding: 4px 9px; border-radius: 3px;
+  text-decoration: none;
+}
+.chip:hover { background: var(--brand-a); }
+
+.meta {
+  display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-3);
+  margin-top: 12px;
+}
+
+.grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+  gap: 28px 26px; padding-block: 30px;
+}
+.card h3 { font-size: 17px; font-weight: 700; letter-spacing: -.012em; margin: 10px 0 7px; }
+.card h3 a { text-decoration: none; }
+.card h3 a:hover { color: var(--accent); }
+.card-excerpt { font-size: 14px; color: var(--ink-2); }
+
+.empty { padding-block: 60px; color: var(--ink-2); text-align: center; }
+
+.pager {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  flex-wrap: wrap; padding-block: 20px 40px; border-top: 1px solid var(--line);
+}
+.pager-link {
+  font-family: var(--disp); font-size: 12px; font-weight: 800; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--accent); text-decoration: none;
+  border: 2px solid var(--accent); padding: 9px 18px; border-radius: 4px;
+}
+.pager-link:hover { background: var(--accent); color: #fff; }
+.pager-pos { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* ---------- entrada ---------- */
+.entry { padding-block: 34px 10px; max-width: 760px; }
+.entry-head { padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.entry-head h1 {
+  font-size: clamp(26px, 5vw, 40px); font-weight: 800; letter-spacing: -.026em; margin: 12px 0 0;
+}
+
+.prose { padding-block: 26px; font-size: 17px; line-height: 1.78; color: var(--ink-b); }
+.prose > * + * { margin-top: 18px; }
+.prose h2 { font-size: 24px; font-weight: 800; letter-spacing: -.018em; margin-top: 34px; color: var(--ink); }
+.prose h3 { font-size: 19px; font-weight: 700; margin-top: 28px; color: var(--ink); }
+.prose a { color: var(--accent); text-underline-offset: 3px; }
+.prose ul, .prose ol { padding-left: 22px; }
+.prose li + li { margin-top: 7px; }
+.prose blockquote {
+  border-left: 3px solid var(--accent); padding: 4px 0 4px 18px; margin-left: 0;
+  color: var(--ink-2); font-style: italic;
+}
+.prose code {
+  font-family: var(--mono); font-size: .87em; background: #f2f6f5;
+  border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px;
+}
+.prose pre {
+  background: #0d1716; color: #cdddd9; padding: 16px; border-radius: 8px;
+  overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.7;
+}
+.prose pre code { background: none; border: 0; padding: 0; color: inherit; font-size: inherit; }
+.prose img { border-radius: 6px; }
+.prose figure { margin: 26px 0; }
+.prose figure img { display: block; }
+.prose figcaption { font-size: 13px; color: var(--ink-3); margin-top: 8px; line-height: 1.5; }
+.prose figcaption p { margin: 0; }
+
+/* Video embebido: relación 16/9 sin saltos de maquetado al cargar. */
+.prose figure.video { aspect-ratio: 16 / 9; margin: 28px 0; }
+.prose figure.video iframe {
+  width: 100%; height: 100%; border: 0; border-radius: 8px; display: block;
+  background: #0d1716;
+}
+.prose .embed-link a {
+  display: inline-block; border: 1px solid var(--line); border-radius: 6px;
+  padding: 9px 16px; text-decoration: none; color: var(--accent); font-size: 14px;
+  font-weight: 600;
+}
+.prose .embed-link a:hover { border-color: var(--accent); background: #f1f7f6; }
+.prose table { border-collapse: collapse; width: 100%; font-size: 15px; }
+.prose th, .prose td { border: 1px solid var(--line); padding: 9px 12px; text-align: left; }
+
+.entry-foot { padding-block: 20px 26px; border-top: 1px solid var(--line); }
+.share-label {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.share { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.share a {
+  font-size: 12.5px; font-weight: 600; text-decoration: none; color: var(--ink-2);
+  border: 1px solid var(--line); border-radius: 5px; padding: 6px 13px;
+}
+.share a:hover { border-color: var(--accent); color: var(--accent); }
+
+.adjacent { display: flex; gap: 12px; flex-wrap: wrap; padding-block: 10px 44px; }
+.adj {
+  flex: 1; min-width: 230px; border: 1px solid var(--line); border-radius: 9px;
+  padding: 13px 16px; text-decoration: none;
+}
+.adj:hover { border-color: var(--accent); }
+.adj span {
+  display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.adj b { display: block; font-size: 13.5px; font-weight: 650; margin-top: 4px; line-height: 1.35; }
+.adj-next { text-align: right; }
+
+/* ---------- error ---------- */
+.errorpage { padding-block: 70px 90px; max-width: 56ch; }
+.errorpage h1 { font-size: clamp(25px, 5vw, 36px); font-weight: 800; letter-spacing: -.024em; margin-top: 8px; }
+.errorpage-msg { color: var(--ink-2); margin-top: 12px; font-size: 16px; }
+.errorpage-id { color: var(--ink-3); font-size: 13px; margin-top: 14px; }
+.errorpage-id code { font-family: var(--mono); }
+.errorpage-actions { margin-top: 24px; }
+.btn {
+  display: inline-block; font-family: var(--disp); font-size: 12px; font-weight: 800;
+  letter-spacing: .08em; text-transform: uppercase; text-decoration: none;
+  background: var(--accent); color: #fff; padding: 11px 22px; border-radius: 4px;
+}
+.btn:hover { background: var(--brand-a); }
+
+/* ---------- pie ---------- */
+.foot { border-top: 1px solid var(--line); margin-top: 20px; }
+.foot-in {
+  max-width: var(--wrap); margin-inline: auto; padding: 24px var(--gut) 44px;
+  display: flex; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap;
+  font-size: 13px; color: var(--ink-3);
+}
+.foot-links { display: flex; gap: 16px; flex-wrap: wrap; }
+.foot-links a { text-decoration: none; }
+.foot-links a:hover { color: var(--accent); }
+
+@media (max-width: 760px) {
+  .hero-img { grid-template-columns: 1fr; gap: 18px; }
+}
+
+@media (max-width: 640px) {
+  .nav-search { margin-left: 0; width: 100%; padding: 0 0 10px; }
+  .nav-search input { width: 100%; }
+  .grid { gap: 24px; }
+}
+
+/* El atributo hidden lo pisa cualquier display explícito, y varios
+ * elementos de acá son flex. Mismo problema que tuvo el gráfico del panel. */
+[hidden] { display: none !important; }
+
+/* ---------- comentarios ---------- */
+.comments { max-width: 760px; padding-block: 10px 40px; border-top: 1px solid var(--line); }
+.comments-title {
+  font-size: 19px; font-weight: 800; letter-spacing: -.018em; padding-block: 26px 4px;
+}
+
+.cmt-list { list-style: none; margin: 0; padding: 0; }
+.cmt { padding-block: 18px; border-bottom: 1px solid var(--line); }
+
+/* La sangría va por clase y no por listas anidadas: el hilo llega aplanado
+ * desde el modelo, con la profundidad ya resuelta y topeada en tres. */
+.cmt-d1 { padding-left: 28px; border-left: 2px solid var(--line); }
+.cmt-d2 { padding-left: 52px; border-left: 2px solid var(--line); }
+
+.cmt-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Avatar de iniciales. Sin Gravatar: ver initials() en helpers.php. */
+.av {
+  display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px;
+  border-radius: 50%; color: #fff; font-family: var(--disp);
+  font-size: 12.5px; font-weight: 800; letter-spacing: .02em; user-select: none;
+}
+.av-0 { background: #00746b; }
+.av-1 { background: #1f6f8b; }
+.av-2 { background: #6b4c9a; }
+.av-3 { background: #a35a2a; }
+.av-4 { background: #8a5a15; }
+.av-5 { background: #2f6f3f; }
+.av-6 { background: #a3304f; }
+.av-7 { background: #3d5a80; }
+
+.cmt-who { display: flex; flex-direction: column; gap: 1px; }
+.cmt-name { font-size: 14.5px; font-weight: 700; text-decoration: none; }
+a.cmt-name:hover { color: var(--accent); }
+.cmt-when { font-size: 12px; color: var(--ink-3); text-decoration: none; }
+.cmt-when:hover { color: var(--accent); }
+
+.cmt-reply {
+  margin-left: auto; font: inherit; font-size: 12.5px; font-weight: 600;
+  color: var(--ink-2); background: none; border: 1px solid var(--line);
+  border-radius: 5px; padding: 5px 12px; cursor: pointer;
+}
+.cmt-reply:hover { border-color: var(--accent); color: var(--accent); }
+
+.cmt-body { padding-top: 10px; }
+.prose-mini { font-size: 15.5px; line-height: 1.72; color: var(--ink-b); }
+.prose-mini > * + * { margin-top: 12px; }
+.prose-mini a { color: var(--accent); }
+.prose-mini code {
+  font-family: var(--mono); font-size: .87em; background: #f2f6f5;
+  border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px;
+}
+.prose-mini pre {
+  background: #0d1716; color: #cdddd9; padding: 13px; border-radius: 7px;
+  overflow-x: auto; font-family: var(--mono); font-size: 12.5px;
+}
+.prose-mini blockquote {
+  border-left: 3px solid var(--line); margin-left: 0; padding-left: 14px; color: var(--ink-2);
+}
+.prose-mini ul, .prose-mini ol { padding-left: 20px; }
+
+.cmt-closed, .cmt-thanks {
+  margin-top: 22px; padding: 14px 16px; border-radius: 8px; font-size: 14px;
+  background: #f2f6f5; border: 1px solid var(--line); color: var(--ink-2);
+}
+.cmt-thanks { background: #e4f1ef; border-color: #bfdedb; color: #00584e; font-weight: 600; }
+
+/* ---------- formulario de comentarios ---------- */
+.cmt-form { margin-top: 30px; }
+.cmt-form-title { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+.cmt-replyto {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 13px; color: var(--ink-2); margin-bottom: 12px;
+}
+.cmt-cancel {
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--accent);
+  background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline;
+}
+
+/* El campo trampa: fuera de la vista y fuera del orden de tabulación.
+ * No se usa display:none porque algunos robots lo detectan y lo saltean. */
+.cmt-trap {
+  position: absolute; left: -9999px; width: 1px; height: 1px;
+  overflow: hidden; opacity: 0;
+}
+
+.cmt-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cmt-form .field { margin-bottom: 14px; }
+.cmt-form label {
+  display: block; font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px;
+}
+.cmt-form .opt { text-transform: none; letter-spacing: 0; font-family: var(--sans); }
+.cmt-form input, .cmt-form textarea {
+  width: 100%; font: inherit; font-size: 15px; color: var(--ink);
+  background: var(--paper); border: 1px solid var(--line); border-radius: 7px;
+  padding: 10px 12px;
+}
+.cmt-form input:focus, .cmt-form textarea:focus { border-color: var(--accent); }
+.cmt-form textarea { resize: vertical; line-height: 1.6; }
+.cmt-form .hint { display: block; font-size: 11.5px; color: var(--ink-3); margin-top: 5px; }
+
+.cmt-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
+.cmt-actions .btn { border: 0; cursor: pointer; font-family: var(--disp); }
+.cmt-actions .btn:disabled { opacity: .5; cursor: default; }
+.cmt-state { font-size: 12.5px; color: var(--ink-3); }
+.cmt-note {
+  margin-top: 12px; padding: 11px 14px; border-radius: 7px; font-size: 13.5px;
+  background: #fbe9e7; border: 1px solid #f0cfc9; color: #8a2b1b;
+}
+
+/* El formulario cuando se mudó abajo de un comentario para responderlo. */
+.cmt .cmt-form { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); }
+
+@media (max-width: 640px) {
+  .cmt-row { grid-template-columns: 1fr; gap: 0; }
+  .cmt-d1 { padding-left: 14px; }
+  .cmt-d2 { padding-left: 26px; }
+  .cmt-reply { margin-left: 0; }
+}
+
+/* ---------- formulario de contacto ---------- */
+.contact { padding-block: 6px 30px; }
+.contact-intro { color: var(--ink-2); font-size: 15.5px; margin-bottom: 20px; }
+.contact-form { margin-top: 0; }

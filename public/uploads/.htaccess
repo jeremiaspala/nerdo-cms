@@ -1,0 +1,35 @@
+# Lo que sube un usuario NUNCA se ejecuta.
+#
+# Esta es la regla que evita la clase entera de "subí una imagen con PHP
+# adentro y la abrí". Va por triplicado a propósito: si una de las tres
+# falla por configuración del servidor, las otras dos siguen de pie.
+
+Options -Indexes -ExecCGI
+
+# 1. Apagar el motor de PHP en este directorio.
+#
+# php_admin_flag NO se puede usar acá: Apache solo lo admite en la
+# configuración del servidor, y un .htaccess que lo tenga devuelve 500 en
+# cada archivo del directorio (se vio: las imágenes dejaron de cargar).
+# La versión de usuario sí está permitida, y en el vhost de producción va
+# además el php_admin_flag, que es el que no se puede pisar.
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+
+# 2. Que ninguna extensión ejecutable tenga handler.
+<IfModule mod_mime.c>
+    RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .pl .py .cgi .sh
+    RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phar
+    AddType text/plain .php .phtml .phar .pl .py .cgi .sh
+</IfModule>
+
+# 3. Y directamente negar el acceso a cualquier cosa que no sea medio conocido.
+<FilesMatch "(?i)\.(php[0-9]?|phtml|phar|pl|py|cgi|sh|htaccess)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'none'; script-src 'none'; sandbox"
+</IfModule>

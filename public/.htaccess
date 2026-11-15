@@ -1,0 +1,48 @@
+# Nerdo CMS — reglas del DocumentRoot.
+# Este archivo asume que DocumentRoot apunta a .../nerdadas/public
+
+Options -Indexes -ExecCGI -MultiViews
+DirectoryIndex index.php
+
+# Sin esto, un .js o un .css con acentos se sirve sin charset y el navegador
+# lo decodifica como latin-1. Rompe desde una tilde hasta un rango unicode
+# dentro de una expresión regular.
+AddDefaultCharset utf-8
+AddCharset utf-8 .js .css .json .svg
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Todo lo que no sea un archivo o directorio real entra por index.php.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Nada de archivos de punto ni respaldos, pase lo que pase.
+<IfModule mod_alias.c>
+    RedirectMatch 404 "(?i)/\.(git|env|ht|svn|idea|vscode)"
+    RedirectMatch 404 "(?i)\.(sql|bak|old|log|swp|dist|lock)$"
+</IfModule>
+
+<IfModule mod_headers.c>
+    # Refuerzo: las mismas que manda PHP, por si alguna respuesta no pasa por él.
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always unset X-Powered-By
+    Header always unset Server
+</IfModule>
+
+# Los assets llevan hash en el nombre: se pueden cachear para siempre.
+<IfModule mod_expires.c>
+    ExpiresActive On
+    <FilesMatch "\.(css|js|woff2|jpg|jpeg|png|webp|avif|svg|ico)$">
+        ExpiresDefault "access plus 1 year"
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    # El HTML siempre se revalida.
+    <FilesMatch "\.(html)$">
+        ExpiresDefault "access plus 0 seconds"
+    </FilesMatch>
+</IfModule>
