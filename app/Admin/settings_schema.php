@@ -25,11 +25,11 @@ return [
                 'help' => 'Se muestra detrás del nombre, con el degradé verde encima. Si la dejás vacía, queda solo el degradé.',
             ],
             'header_overlay' => [
-                'label' => 'Intensidad del degradé',
+                'label' => 'Velo detrás del título',
                 'type' => 'select',
                 'default' => 'medio',
                 'options' => ['suave' => 'Suave', 'medio' => 'Medio', 'fuerte' => 'Fuerte'],
-                'help' => 'Cuánto tapa el verde a la foto. Más fuerte se lee mejor; más suave se ve más la imagen.',
+                'help' => 'Una sombra neutra sobre la franja izquierda del encabezado, que es donde va el texto. No tiñe la foto ni la tapa: del centro hacia la derecha se ve tal cual. Subilo solo si la imagen es clara y el título no se lee.',
             ],
             'posts_per_page' => ['label' => 'Entradas por página', 'type' => 'number', 'default' => '10', 'min' => 3, 'max' => 50],
         ],

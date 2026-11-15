@@ -108,6 +108,11 @@ conviviendo unos días, comparar peticiones y errores, y después mover el DNS.
 - **PHP y la base comparten zona horaria**, fijada por conexión en `Db`.
 - **El visitante anónimo no recibe cookie** — condición para que el caché de
   página sirva a todos por igual.
+- **Si el encabezado tiene foto, la foto manda.** El velo es neutro y cubre
+  solo la franja izquierda, que es donde va el texto; del 72% del ancho para
+  la derecha la imagen se ve tal cual. Lo que hace legible el título es el
+  `text-shadow`, no el velo. El degradé verde al 82% sobre toda la imagen
+  —como estaba— es lo mismo que no tener imagen.
 - **La fecha va dentro de `visitor_hash`**: es lo que hace que la analítica no
   sea seguimiento y no necesite banner.
 - **El formulario de comentarios no usa token de sesión.** Usa un desafío
@@ -364,3 +369,16 @@ estar en cero a propósito.
 **Pendiente de decidir**: el repositorio no tiene licencia, así que por
 defecto es «todos los derechos reservados». Si la idea es que alguien más lo
 pueda usar, hay que agregar un `LICENSE`.
+
+### 2026-11-14 (sexta parte)
+
+**Licencia MIT** y **encabezado con foto arreglado.**
+
+El encabezado tapaba la imagen con el degradé verde de marca al 82%: se veía
+una mancha verde con una textura adentro, que es justamente lo que el tema de
+WordPress no hacía —ahí la foto va a tamaño completo y sin nada encima—. Se
+reemplazó por un velo neutro, horizontal, sobre la franja izquierda donde va
+el texto; a partir del 72% del ancho no hay nada. El ajuste «Intensidad del
+degradé» pasó a llamarse «Velo detrás del título» y ahora regula eso.
+
+Las capturas 01 y 03 del repositorio se rehicieron con el encabezado nuevo.
