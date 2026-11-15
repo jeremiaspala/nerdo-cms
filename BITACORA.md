@@ -666,6 +666,26 @@ Cosas que aparecieron al hacerlo:
   que el paso de elegir la cuenta y aceptar los permisos lo tiene que hacer
   una persona. Era de esperar y está bien que sea así.
 
+**El bug que apareció al probarlo de verdad, y que valía la pena encontrar
+ahora y no en producción:** entrar con Google «no entraba». El login sí
+funcionaba —quedaron dos `login.google` en la bitácora y dos sesiones con
+`user_id` en la tabla—, pero el navegador volvía al formulario.
+
+La causa es la cookie de sesión en **`SameSite=Strict`**, que es como la
+queremos: el navegador no la manda en nada que venga de otro dominio. Al
+volver de Google la cookie **se guarda**, pero el redirect que sigue todavía
+es parte de una navegación empezada en `accounts.google.com`, así que no se
+manda, y el panel ve a alguien sin sesión.
+
+Se arregló con un salto más desde el propio dominio (`Response::landing()`):
+una página mínima con `<meta http-equiv="refresh">` —no JavaScript, que
+necesitaría nonce— y un enlace de respaldo. La alternativa era aflojar la
+cookie a `SameSite=Lax`; se descartó porque esto resuelve el único caso que
+lo necesita sin tocar el resto del sitio.
+
+Vale para cualquier vuelta de otro dominio que tenga que dejar sesión
+iniciada: si algún día se agrega otro proveedor, el salto va igual.
+
 **Dos cosas que se cerraron antes de probar con Google de verdad:**
 
 1. La comprobación del `id_token` se separó del intercambio del código

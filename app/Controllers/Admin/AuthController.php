@@ -208,7 +208,9 @@ final class AuthController
         $this->auth->login($request, $user);
         $this->auth->audit((int) $user['id'], 'login.google', $identidad['email'], $request);
 
-        return Response::redirect($this->app->adminPath);
+        // Página puente y no redirect: ver Response::landing(). Un 302 acá
+        // deja la sesión creada pero sin cookie que vuelva.
+        return Response::landing($this->app->adminPath);
     }
 
     private function googleHabilitado(GoogleOAuth $google): bool

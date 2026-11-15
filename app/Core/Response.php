@@ -96,6 +96,43 @@ final class Response
         return new self('', 302, ['Location' => $url, 'Cache-Control' => 'no-store']);
     }
 
+    /**
+     * Página puente para volver de otro sitio sin perder la sesión.
+     *
+     * La cookie de sesión es `SameSite=Strict`, que es lo que queremos: el
+     * navegador no la manda en nada que venga de otro dominio. El efecto
+     * colateral aparece al volver de Google: la cookie **se guarda** en esa
+     * respuesta, pero el redirect que sigue todavía es parte de una
+     * navegación empezada en accounts.google.com, así que el navegador no la
+     * manda y el panel ve a alguien sin sesión. Pasó tal cual: el login se
+     * registró dos veces en la bitácora y el navegador volvía al formulario.
+     *
+     * La solución es dar un salto más desde el propio dominio. Va con
+     * `<meta http-equiv="refresh">` y no con JavaScript porque un script en
+     * línea necesitaría nonce y porque esto tiene que funcionar incluso si
+     * algo del script falla; el enlace de abajo es la red por si el refresh
+     * estuviera deshabilitado.
+     *
+     * La alternativa era aflojar la cookie a `SameSite=Lax`. Se descartó:
+     * esto resuelve el único caso que lo necesita sin tocar el resto.
+     */
+    public static function landing(string $to, string $titulo = 'Entrando…'): self
+    {
+        if (!str_starts_with($to, '/') || str_starts_with($to, '//')) {
+            $to = '/';
+        }
+
+        $destino = htmlspecialchars($to, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+        $html = '<!doctype html><html lang="es"><head><meta charset="utf-8">'
+            . '<meta name="robots" content="noindex, nofollow">'
+            . '<meta http-equiv="refresh" content="0; url=' . $destino . '">'
+            . '<title>' . htmlspecialchars($titulo, ENT_QUOTES) . '</title></head>'
+            . '<body><p><a href="' . $destino . '">Seguí acá si no te lleva solo.</a></p></body></html>';
+
+        return self::html($html, 200, ['Cache-Control' => 'no-store, max-age=0']);
+    }
+
     public function send(): void
     {
         http_response_code($this->status);
