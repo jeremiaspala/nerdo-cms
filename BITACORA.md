@@ -65,7 +65,7 @@ rsync -az --files-from=storage/import/uploads-originales.txt \
 | — | Configuración por secciones, correo mail()/SMTP, encabezado con foto, video embebido | hecho |
 | 6 | Comentarios: frente, antispam en capas, cola de moderación | hecho |
 | 3 | Caché de página + fuentes autoalojadas | hecho |
-| **8** | **Instalador, TOTP, endurecido final** | **pendiente** |
+| 8 | Instalador, TOTP, endurecido final | en curso: captcha y recuperación hechos |
 | — | Formulario de contacto | hecho |
 
 **Contenido migrado**: 145 entradas publicadas + 22 borradores, 4 páginas,
@@ -461,3 +461,36 @@ Tanda de pedidos chicos del panel y del tema:
 - **«Hecho con Nerdo CMS» en el pie**, apuntando al repositorio. Va ahí y no
   en un `<meta name="generator">`: eso es lo primero que mira un escáner
   para saber qué versión atacar, y es justo lo que se le sacó a WordPress.
+
+### 2026-11-14 (décima parte)
+
+**Captcha en el login y recuperación de contraseña**, que son dos de las
+cosas que faltaban de la fase 8.
+
+El captcha es la misma prueba de trabajo que los comentarios y el contacto,
+con el desafío embebido en el formulario (la página de login no se cachea
+nunca, así que no hace falta pedirlo aparte). El alcance es −1 para el login
+y −2 para la recuperación: un desafío emitido para comentar no sirve para
+probar contraseñas. El piso de tiempo acá va en 0 a propósito —escribir
+rápido no es sospechoso, y castigaría a quien usa un gestor de contraseñas—;
+lo que frena al que prueba listas es el costo de CPU, no la espera.
+
+**El desafío se gasta por intento.** Sin eso se resuelve una vez y se reusa
+mil veces, que es exactamente lo que había que evitar.
+
+La recuperación: enlace por correo, una hora de vida, un solo uso, y al
+usarlo se queman los demás de esa cuenta. De la base no sale ningún enlace
+usable, porque **se guarda el SHA-256 del token y no el token** —un enlace
+pendiente es, por una hora, equivalente a la contraseña—. La respuesta es
+siempre la misma exista o no la cuenta, igual que en el login.
+
+**Un bug que apareció probando**: al cambiar la contraseña se borran todas
+las sesiones de la cuenta, pero PHP vuelve a escribir la fila de la sesión
+en curso al terminar el script. Resultado: la única sesión que sobrevivía a
+un cambio de contraseña era justo la del navegador que lo hizo, mientras la
+pantalla prometía lo contrario. Se cierra explícitamente antes de redirigir.
+
+Probado: login con captcha, login con el captcha vacío y con uno inventado
+(422 las dos veces), pedido de enlace para una cuenta que existe y para una
+que no (misma respuesta), enlace usado dos veces (410 la segunda), token
+inventado (410), y el cierre de las seis sesiones abiertas.

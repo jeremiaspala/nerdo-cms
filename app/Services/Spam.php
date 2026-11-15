@@ -157,11 +157,19 @@ final class Spam
      * los robots completan y envían en el mismo request, y un humano que
      * escribe tres líneas tarda bastante más que ocho segundos.
      */
-    public function timingOk(int $issuedAt): bool
+    /**
+     * @param int|null $floor segundos mínimos; null usa el piso de los
+     *                        formularios públicos. El login pasa 0: ahí el
+     *                        piso no aporta nada —escribir una contraseña
+     *                        rápido no es sospechoso— y castigaría a quien
+     *                        usa un gestor de contraseñas, que completa y
+     *                        envía al instante.
+     */
+    public function timingOk(int $issuedAt, ?int $floor = null): bool
     {
         $elapsed = time() - $issuedAt;
 
-        return $elapsed >= self::TIME_FLOOR && $elapsed <= self::TIME_CEIL;
+        return $elapsed >= ($floor ?? self::TIME_FLOOR) && $elapsed <= self::TIME_CEIL;
     }
 
     public function originOk(Request $request): bool

@@ -323,7 +323,8 @@ try {
             )->rowCount();
             $limits = $app->limiter->purge();
             $nonces = (new App\Services\Spam($app))->purgeNonces();
-            out("Sesiones vencidas: {$sessions} · Límites viejos: {$limits} · Desafíos gastados: {$nonces}");
+            $resets = (new App\Models\PasswordReset($app->db))->purge();
+            out("Sesiones vencidas: {$sessions} · Límites viejos: {$limits} · Desafíos gastados: {$nonces} · Enlaces de recuperación: {$resets}");
             break;
 
         case 'routes':
