@@ -30,6 +30,12 @@ $depth = max(0, min(2, (int) ($c['depth'] ?? 0)));
           <b class="cmt-name"><?= e($c['author_name']) ?></b>
         <?php endif; ?>
 
+        <?php if (($c['author_source'] ?? 'anonimo') === 'google'): ?>
+          <?php /* Dice que el correo lo verificó Google, no que la persona
+                   sea de fiar. Es un dato, no un premio. */ ?>
+          <span class="cmt-verificado" title="Se identificó con una cuenta de Google">cuenta verificada</span>
+        <?php endif; ?>
+
         <a class="cmt-when" href="#comentario-<?= (int) $c['id'] ?>">
           <?php /* El atributo lleva la T de ISO 8601; el texto va en castellano. */ ?>
           <time datetime="<?= e(str_replace(' ', 'T', substr((string) $c['created_at'], 0, 16))) ?>">

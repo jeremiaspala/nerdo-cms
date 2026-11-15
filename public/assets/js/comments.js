@@ -25,6 +25,91 @@
   var ready = false;
   var working = false;
 
+  // ------------------------------------------------------------------
+  // Identidad de Google, guardada en el propio navegador
+  //
+  // El servidor devuelve un vale firmado en el fragmento de la URL
+  // (#ncms-id=…), que no viaja al servidor ni queda en ningún log. Se guarda
+  // en localStorage, que es de este navegador y de nadie más: no hay cookie,
+  // así que la página se sigue sirviendo del caché igual para todo el mundo.
+  // ------------------------------------------------------------------
+
+  var LLAVE = 'ncms-ident';
+  var identCampo = document.getElementById('cmt-ident');
+  var identCartel = document.getElementById('cmt-identidad');
+  var identNombre = document.getElementById('cmt-identidad-nombre');
+  var identBoton = document.getElementById('cmt-google');
+  var datos = document.getElementById('cmt-datos');
+  var sitioCampo = document.getElementById('cmt-sitio-campo');
+  var salir = document.getElementById('cmt-salir');
+
+  function guardar(vale) {
+    try { localStorage.setItem(LLAVE, vale); } catch (e) { /* modo privado */ }
+  }
+
+  function leerVale() {
+    try { return localStorage.getItem(LLAVE) || ''; } catch (e) { return ''; }
+  }
+
+  /** El nombre que viene adentro del vale, solo para mostrarlo. */
+  function nombreDe(vale) {
+    try {
+      var cuerpo = vale.split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+      var datos = JSON.parse(decodeURIComponent(escape(atob(cuerpo))));
+      // Ocho horas, igual que el servidor: si venció, que lo pida de nuevo.
+      if (!datos.t || (Date.now() / 1000 - datos.t) > 28800) { return ''; }
+      return datos.n || '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function aplicarIdentidad() {
+    if (!identCampo) { return; }
+
+    var vale = leerVale();
+    var nombre = vale === '' ? '' : nombreDe(vale);
+
+    if (nombre === '') {
+      identCampo.value = '';
+      try { localStorage.removeItem(LLAVE); } catch (e) { /* nada */ }
+      return;
+    }
+
+    identCampo.value = vale;
+
+    if (identNombre) { identNombre.textContent = nombre; }
+    if (identCartel) { identCartel.hidden = false; }
+    if (identBoton) { identBoton.hidden = true; }
+
+    // Con identidad verificada, el nombre y el correo los pone el servidor:
+    // los campos sobran y encima invitarían a poner otra cosa.
+    if (datos) { datos.hidden = true; }
+    if (sitioCampo) { sitioCampo.hidden = true; }
+    ['cmt-nombre', 'cmt-email'].forEach(function (id) {
+      var campo = document.getElementById(id);
+      if (campo) { campo.required = false; }
+    });
+  }
+
+  // La vuelta de Google: se toma el vale del fragmento y se limpia la URL,
+  // para que no quede a la vista ni se comparta por accidente.
+  if (location.hash.indexOf('#ncms-id=') === 0) {
+    guardar(location.hash.slice('#ncms-id='.length));
+    history.replaceState(null, '', location.pathname + location.search + '#comentarios');
+  } else if (location.hash.indexOf('#ncms-google=') === 0) {
+    history.replaceState(null, '', location.pathname + location.search + '#comentarios');
+  }
+
+  aplicarIdentidad();
+
+  if (salir) {
+    salir.addEventListener('click', function () {
+      try { localStorage.removeItem(LLAVE); } catch (e) { /* nada */ }
+      location.reload();
+    });
+  }
+
   function prepare() {
     if (ready || working) { return; }
     working = true;
@@ -128,6 +213,10 @@
         ready = false;
         powField.value = '';
         tokenField.value = '';
+        if (r.json.error && r.json.error.indexOf('identificarse') !== -1) {
+          try { localStorage.removeItem(LLAVE); } catch (e) { /* nada */ }
+        }
+
         fail(r.json.error || 'No pudimos publicar el comentario.', r.json.field);
         return;
       }

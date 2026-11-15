@@ -46,6 +46,9 @@ function admin_icon(string $name): string
         'configuracion' => '<path d="M3 7.5h8"/><path d="M15.5 7.5H21"/><path d="M3 16.5h4.5"/>'
             . '<path d="M12 16.5h9"/><circle cx="13" cy="7.5" r="2.4"/><circle cx="9.5" cy="16.5" r="2.4"/>',
 
+        'bitacora' => '<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H18a1 1 0 0 1 1 1v15.5a1.5 1.5 0 0 1-1.5 1.5H6.5A1.5 1.5 0 0 1 5 19.5z"/>'
+            . '<path d="M8.5 8h7"/><path d="M8.5 12h7"/><path d="M8.5 16h4"/>',
+
         'seguridad' => '<path d="M12 3 4.5 6v6c0 4.2 3 7.9 7.5 9 4.5-1.1 7.5-4.8 7.5-9V6z"/>'
             . '<path d="M9 12.2l2 2 4-4.2"/>',
 

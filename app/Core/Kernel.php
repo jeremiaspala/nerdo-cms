@@ -149,7 +149,10 @@ final class Kernel
             ->get("#^{$a}/entrar$#", [Admin\AuthController::class, 'form'])
             ->post("#^{$a}/entrar$#", [Admin\AuthController::class, 'login'])
             ->post("#^{$a}/entrar/codigo$#", [Admin\AuthController::class, 'totp'])
+            ->get("#^{$a}/entrar/google$#", [Admin\AuthController::class, 'googleStart'])
+            ->get("#^{$a}/entrar/google/vuelta$#", [Admin\AuthController::class, 'googleReturn'])
             ->post("#^{$a}/salir$#", [Admin\AuthController::class, 'logout'])
+            ->get("#^{$a}/bitacora$#", [Admin\AuditController::class, 'index'])
             ->get("#^{$a}/seguridad$#", [Admin\SecurityController::class, 'index'])
             ->post("#^{$a}/seguridad/cerrar$#", [Admin\SecurityController::class, 'revoke'])
             ->post("#^{$a}/seguridad/cerrar-otras$#", [Admin\SecurityController::class, 'revokeOthers'])
@@ -201,6 +204,8 @@ final class Kernel
             // formulario no usa un token de sesión.
             ->get('#^/comentarios/desafio$#', [Front\CommentController::class, 'challenge'])
             ->post('#^/comentarios$#', [Front\CommentController::class, 'store'])
+            ->get('#^/comentarios/google$#', [Front\CommentController::class, 'googleStart'])
+            ->get('#^/comentarios/google/vuelta$#', [Front\CommentController::class, 'googleReturn'])
             // Contacto: el formulario se dibuja dentro de la página que diga
             // el ajuste, pero el envío tiene ruta propia.
             ->get('#^/contacto/desafio$#', [Front\ContactController::class, 'challenge'])

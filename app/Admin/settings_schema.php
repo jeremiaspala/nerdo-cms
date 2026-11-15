@@ -118,6 +118,21 @@ return [
                 'type' => 'number', 'default' => '90', 'min' => 0, 'max' => 3650,
                 'help' => 'Pasado ese tiempo desde la publicación no se aceptan más. 0 = nunca cerrar. El spam de enlaces empieza justo en las entradas viejas.',
             ],
+            'comments_identidad' => [
+                'label' => 'Quién puede comentar',
+                'type' => 'select', 'default' => 'ambos',
+                'options' => [
+                    'anonimo' => 'Cualquiera, con nombre y correo',
+                    'google' => 'Solo con una cuenta de Google',
+                    'ambos' => 'Las dos cosas, a elección',
+                ],
+                'help' => 'Con Google, el correo lo verifica Google y el nombre es el de la cuenta. Necesita la sección Google configurada.',
+            ],
+            'comments_google_autoaprueba' => [
+                'label' => 'Publicar sin moderar los de Google',
+                'type' => 'bool', 'default' => '1',
+                'help' => 'Quien se identificó con una cuenta verificada tiene mucho menos sentido moderarlo: el costo de hacerse diez cuentas de Google para spamear es otro.',
+            ],
             'comments_require_moderation' => [
                 'label' => 'Moderar siempre',
                 'type' => 'bool', 'default' => '1',
@@ -149,6 +164,42 @@ return [
                 'label' => 'Avisar a',
                 'type' => 'text', 'depends' => 'comments_notify=1',
                 'help' => 'Si lo dejás vacío, va al correo del primer administrador.',
+            ],
+        ],
+    ],
+
+    'google' => [
+        'titulo' => 'Google',
+        'descripcion' => 'Entrar al panel con una cuenta de Google y, si querés, que la gente comente con la suya.',
+        'campos' => [
+            'google_enabled' => [
+                'label' => 'Habilitar Google',
+                'type' => 'bool', 'default' => '0',
+                'help' => 'Necesita el ID y el secreto de un cliente OAuth creado en Google Cloud Console. Las URL de redirección están abajo.',
+            ],
+            'google_client_id' => [
+                'label' => 'Client ID',
+                'type' => 'text',
+                'depends' => 'google_enabled=1',
+                'help' => 'Termina en .apps.googleusercontent.com',
+            ],
+            'google_client_secret' => [
+                'label' => 'Client secret',
+                'type' => 'password',
+                'depends' => 'google_enabled=1',
+                'help' => 'Se guarda cifrado con la APP_KEY: un volcado de la base no alcanza para hacerse pasar por este sitio ante Google.',
+            ],
+            'google_comentarios' => [
+                'label' => 'Permitir comentar con Google',
+                'type' => 'bool', 'default' => '1',
+                'depends' => 'google_enabled=1',
+                'help' => 'Quien firma con Google no recibe cookie: la identidad viaja en un vale firmado que guarda su navegador. El caché de página sigue sirviendo a todos por igual.',
+            ],
+            'google_panel' => [
+                'label' => 'Permitir entrar al panel con Google',
+                'type' => 'bool', 'default' => '1',
+                'depends' => 'google_enabled=1',
+                'help' => 'Solo para cuentas que ya existen en el CMS y con el mismo correo. Google dice quién sos; quién puede entrar lo sigue decidiendo el CMS.',
             ],
         ],
     ],

@@ -18,6 +18,7 @@ $nav = [
     ['messages', '/mensajes', 'mensajes', 'Mensajes', (int) ($counts['messages'] ?? 0)],
     ['analytics', '/analitica', 'analitica', 'Analítica', null],
     ['security', '/seguridad', 'seguridad', 'Seguridad', null],
+    ['audit', '/bitacora', 'bitacora', 'Bitácora', null],
     ['settings', '/configuracion', 'configuracion', 'Configuración', null],
 ];
 

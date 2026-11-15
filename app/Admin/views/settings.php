@@ -29,6 +29,23 @@ $val = static fn (string $k, array $f): string => (string) ($values[$k] ?? ($f['
         action="<?= e($adminPath) ?>/configuracion/<?= e($section) ?>/guardar">
     <?= $csrf ?>
 
+    <?php if ($section === 'google'): ?>
+      <?php /* Las dos URL que hay que registrar en Google Cloud Console.
+               Se arman acá con el APP_URL real para no tener que explicar
+               cómo componerlas: se copian y se pegan. */ ?>
+      <div class="avisobox">
+        <p class="strong">En Google Cloud Console, «Credenciales → ID de cliente de OAuth → Aplicación web»</p>
+        <p class="hint">Orígenes autorizados de JavaScript: no hace falta ninguno.</p>
+        <p class="hint">URI de redirección autorizados, los dos:</p>
+        <pre class="urlbox"><?= e($siteUrl . $adminPath) ?>/entrar/google/vuelta
+<?= e($siteUrl) ?>/comentarios/google/vuelta</pre>
+        <p class="hint">
+          Si el sitio cambia de dominio, hay que actualizarlas también acá:
+          Google compara la URL completa, carácter por carácter.
+        </p>
+      </div>
+    <?php endif; ?>
+
     <?php foreach ($sec['campos'] as $key => $f): ?>
       <?php
         $v = $val($key, $f);

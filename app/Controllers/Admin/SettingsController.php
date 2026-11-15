@@ -87,7 +87,10 @@ final class SettingsController extends AdminController
                 if (trim($value) === '') {
                     continue;
                 }
-                $value = $this->mailer()->encryptPassword(trim($value));
+
+                $value = $key === 'google_client_secret'
+                    ? (new \App\Services\GoogleOAuth($this->app))->encryptSecret(trim($value))
+                    : $this->mailer()->encryptPassword(trim($value));
             }
 
             $this->app->settings->set($key, $value);

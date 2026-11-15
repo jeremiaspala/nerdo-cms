@@ -77,6 +77,25 @@ final class Response
         return new self('', $status, ['Location' => $to]);
     }
 
+    /**
+     * Redirección a otro dominio, para la única cosa que la necesita: mandar
+     * a alguien a Google a autorizar.
+     *
+     * Va aparte de redirect() a propósito. Esa función solo admite rutas
+     * propias, y está bien que así sea: es lo que evita que el CMS se use de
+     * trampolín de phishing. Acá la URL no viene de la entrada del usuario
+     * sino que la arma el servicio, y se comprueba igual que sea https y del
+     * dominio que esperamos.
+     */
+    public static function away(string $url): self
+    {
+        if (!str_starts_with($url, 'https://accounts.google.com/')) {
+            return self::redirect('/');
+        }
+
+        return new self('', 302, ['Location' => $url, 'Cache-Control' => 'no-store']);
+    }
+
     public function send(): void
     {
         http_response_code($this->status);

@@ -591,3 +591,22 @@ a.cmt-name:hover { color: var(--accent); }
 .foot-sep { color: var(--line); margin-inline: 4px; }
 .foot-in a { text-decoration: none; }
 .foot-in p a:hover { color: var(--accent); }
+
+/* ---------- identidad de Google en los comentarios ---------- */
+.cmt-google { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 26px; }
+.cmt-google .googlebtn {
+  display: inline-flex; align-items: center; gap: 10px;
+  border: 1px solid var(--line); border-radius: 7px; padding: 10px 16px;
+  text-decoration: none; font-size: 14px; font-weight: 600; background: var(--paper);
+}
+.cmt-google .googlebtn:hover { border-color: var(--accent); }
+.cmt-ogoogle { font-size: 13px; color: var(--ink-3); }
+.cmt-identidad {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 26px;
+  font-size: 14px; background: #f2f6f5; border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px 14px;
+}
+.cmt-verificado {
+  font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+  color: #00584e; background: #dff1ed; border-radius: 3px; padding: 2px 6px;
+}

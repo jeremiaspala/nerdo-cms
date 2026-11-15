@@ -149,6 +149,16 @@ conviviendo unos días, comparar peticiones y errores, y después mover el DNS.
   comentarios: ahí es un dato de más que solo sirve para reconocer a alguien,
   acá es la dirección a la que hay que contestar. Guardar un hash sería
   guardar algo inservible.
+- **Quien comenta con Google no recibe cookie.** La identidad viaja en un
+  vale firmado que guarda el navegador, no en una sesión. Si algún día se
+  cambia por una cookie, el caché de página deja de servirle la misma copia
+  a todo el mundo y hay que replantear la fase 3 entera.
+- **Google dice quién sos, no si podés entrar.** Para el panel, la cuenta
+  tiene que existir en el CMS. Sin esa regla, cualquiera con una cuenta de
+  Gmail se da de alta solo.
+- **La bitácora no guarda IPs en claro**, igual que la analítica: va el HMAC.
+  Sirve para ver que dos accesos vinieron del mismo lado y no para ubicar a
+  nadie.
 - **Las tipografías se autoalojan.** Google Fonts no entra en `font-src
   'self'` y, además, le entrega a Google la IP y el user-agent de cada lector
   en cada visita — exactamente lo que se sacó al reemplazar Analytics.
@@ -529,3 +539,48 @@ Y uno de modelo: `User::findById()` no traía `totp_secret`, así que el
 segundo paso del login rechazaba códigos correctos. Ahora hay un método
 aparte, que además evita cargar el secreto en memoria en cada request del
 panel.
+
+### 2026-11-15
+
+**Bitácora de accesos, Google OAuth y comentarios con identidad.**
+
+La **bitácora** ya se escribía desde la fase 2 pero solo se veían las últimas
+diez en el escritorio. Ahora tiene pantalla propia con filtros por tipo
+—acceso, contenido, moderación, alerta—, por persona y por fecha, y avisa
+arriba si hubo intentos fallidos en las últimas 24 horas. Se limpia por
+antigüedad con `audit:purge`: una bitácora que no se limpia nunca termina
+siendo un registro de años que a nadie le sirve y a cualquiera que entre le
+viene bien.
+
+**Google** quedó apagado por defecto y se configura en su sección, que
+muestra las dos URL de redirección listas para copiar en Google Cloud
+Console. El client secret se guarda cifrado con la APP_KEY.
+
+Dos decisiones que importan más que el código:
+
+1. **Para el panel, la cuenta tiene que existir.** Google verifica el correo;
+   quién puede entrar lo sigue decidiendo el CMS. Si la cuenta tiene segundo
+   factor, se pide igual: Google confirma el correo, no que del otro lado
+   esté quien dice ser.
+2. **Quien comenta con Google no recibe cookie.** Era la parte difícil: una
+   sesión para visitantes habría roto el caché de página, que es la fase 3
+   entera. En su lugar, la vuelta de Google devuelve un vale firmado con la
+   APP_KEY en el **fragmento** de la URL —que no viaja al servidor ni queda
+   en ningún log—, el navegador lo guarda en localStorage y lo manda con el
+   comentario. Dura ocho horas.
+
+El `id_token` no se verifica contra el JWKS de Google y está bien que no:
+no llega por el navegador sino que lo pide este servidor al endpoint de
+Google por TLS, autenticándose con el client secret. Lo que se comprueba son
+las afirmaciones (aud, iss, exp, email_verified).
+
+**Probado sin credenciales reales**: la redirección lleva los parámetros
+correctos y el `state` firmado; un `volver=https://evil.example` se descarta
+y queda en `/` (sería un redirector abierto con cara de sitio conocido); el
+vale válido entra como «cuenta verificada» y se publica sin moderar; el vale
+adulterado **no da ningún privilegio** y cae a anónimo; con «solo Google»
+configurado, el envío anónimo se rechaza con 403 y el formulario esconde los
+campos de nombre y correo.
+
+Lo que no se pudo probar acá es la vuelta real de Google, que necesita un
+cliente OAuth de verdad: queda para cuando estén las credenciales.

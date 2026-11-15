@@ -272,6 +272,58 @@ captcha de terceros mirando quién entra.
 - **Sesiones abiertas**: se ven y se cierran desde *Seguridad*, de a una o
   todas las demás.
 
+## Entrar con Google
+
+Opcional y apagado por defecto. Se configura en *Configuración → Google*, que
+muestra las dos URL de redirección que hay que registrar en Google Cloud
+Console. El client secret se guarda cifrado con la `APP_KEY`.
+
+Sirve para dos cosas distintas:
+
+- **Entrar al panel.** La cuenta tiene que existir en el CMS y con el mismo
+  correo: **Google dice quién sos, no si podés entrar**. Sin esa regla,
+  cualquiera con una cuenta de Gmail se daría de alta solo. Si la cuenta
+  tiene segundo factor, se pide igual.
+- **Comentar.** Quien quiera, puede firmar con su cuenta en vez de escribir
+  un nombre y un correo que nadie comprueba. El comentario queda marcado como
+  «cuenta verificada» y, si está configurado así, se publica sin moderar.
+
+**Quien comenta con Google no recibe una cookie.** Eso no es un detalle: el
+visitante anónimo sin cookie es lo que permite que el caché de página sirva
+la misma copia a todo el mundo. En vez de abrir sesión, la vuelta de Google
+devuelve un **vale firmado** con la `APP_KEY` —nombre, correo, vencimiento—
+en el fragmento de la URL, que no viaja al servidor ni queda en ningún log.
+El navegador lo guarda en `localStorage` y lo manda con el comentario; el
+servidor verifica la firma y usa esos datos en lugar de los del formulario.
+Dura ocho horas.
+
+El `id_token` de Google no se verifica contra su JWKS: no llega por el
+navegador sino que lo pide este servidor al endpoint de Google, por TLS y
+autenticándose con el client secret. Viene de la fuente por un canal
+autenticado, así que lo que se comprueba son las afirmaciones —para quién
+es, quién lo emitió, cuándo vence, si el correo está verificado— y no la
+firma. Es lo que admite la especificación para el flujo de código, y evita
+bajar y cachear claves ajenas.
+
+## Bitácora de accesos
+
+*Bitácora*, en el panel: quién entró, quién lo intentó y falló, qué se
+publicó, qué se moderó y qué se cambió de la configuración. Con filtros por
+tipo, por persona y por fecha, y un aviso arriba si hubo intentos fallidos en
+las últimas 24 horas.
+
+**No guarda la IP en claro**: lo que se muestra son ocho caracteres del HMAC
+que usa el resto del CMS. Alcanza para ver que dos accesos vinieron del mismo
+lugar y no sirve para ubicar a nadie.
+
+Es de solo lectura desde la web. Lo único que la toca es la limpieza por
+antigüedad:
+
+```cron
+# Una vez por semana, borra lo más viejo que 180 días.
+25 4 * * 0  cd /var/www/nerdadas && php bin/console audit:purge --days=180
+```
+
 ## Producción
 
 El `DocumentRoot` apunta a `public/`. **Nada más puede ser alcanzable por web.**

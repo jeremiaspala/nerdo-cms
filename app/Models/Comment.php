@@ -47,7 +47,8 @@ final class Comment
     public function threadFor(int $postId): array
     {
         $rows = $this->db->select(
-            'SELECT id, parent_id, author_name, author_url, email_hash, body_html, created_at
+            'SELECT id, parent_id, author_name, author_url, author_source, email_hash,
+                    body_html, created_at
                FROM comments
               WHERE post_id = :post AND status = :status
               ORDER BY created_at ASC, id ASC',

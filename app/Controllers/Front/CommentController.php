@@ -10,6 +10,7 @@ use App\Core\Response;
 use App\Models\Comment;
 use App\Models\Post;
 use App\Services\HtmlSanitizer;
+use App\Services\GoogleOAuth;
 use App\Services\Mailer;
 use App\Services\Spam;
 use Throwable;
@@ -104,9 +105,26 @@ final class CommentController extends Controller
         }
 
         // ---- 7. Validación.
-        $name = mb_substr($request->post('nombre'), 0, 120);
-        $email = mb_strtolower($request->post('email'));
-        $url = mb_substr($request->post('url'), 0, 300);
+        //
+        // Si vino un vale de Google, el nombre y el correo salen de ahí y no
+        // del formulario: son los que verificó Google y no los que alguien
+        // escribió en un input.
+        $identidad = $this->abrirIdentidad($request->post('ident'));
+        $fuente = $identidad === null ? 'anonimo' : 'google';
+
+        $identidadRequerida = $this->app->settings->get('comments_identidad', 'ambos') === 'google';
+
+        if ($identidadRequerida && $identidad === null) {
+            return $this->fail('Para comentar hace falta identificarse con una cuenta de Google.', 403);
+        }
+
+        $name = $identidad !== null
+            ? $identidad['nombre']
+            : mb_substr($request->post('nombre'), 0, 120);
+        $email = $identidad !== null
+            ? $identidad['email']
+            : mb_strtolower($request->post('email'));
+        $url = $identidad !== null ? '' : mb_substr($request->post('url'), 0, 300);
         $text = mb_substr($request->postRaw('cuerpo'), 0, self::MAX_BODY);
 
         if (mb_strlen($name) < 2) {
@@ -137,7 +155,7 @@ final class CommentController extends Controller
         $emailHash = hash_hmac('sha256', $email, $this->app->env->require('HASH_PEPPER'));
         $verdict = $spam->score($name, $emailHash, $url, $text, $request);
 
-        $status = $this->decideStatus($verdict['score'], $emailHash, $spam);
+        $status = $this->decideStatus($verdict['score'], $emailHash, $spam, $fuente);
 
         // ---- 9. Inserción. El cuerpo llega como texto plano y se convierte
         //         a HTML acá: el visitante no puede mandar etiquetas. Igual
@@ -150,6 +168,7 @@ final class CommentController extends Controller
             'parent_id' => $comments->validParent($request->int('parent_id'), $postId),
             'author_name' => $name,
             'author_url' => $url,
+            'author_source' => $fuente,
             'email_hash' => $emailHash,
             'body_html' => $bodyHtml,
             'body_text_hash' => hash('sha256', mb_strtolower(trim($text))),
@@ -186,6 +205,7 @@ final class CommentController extends Controller
                         'id' => $id,
                         'author_name' => $name,
                         'author_url' => $url,
+                        'author_source' => $fuente,
                         'email_hash' => $emailHash,
                         'body_html' => $bodyHtml,
                         'created_at' => date('Y-m-d H:i:s'),
@@ -201,6 +221,155 @@ final class CommentController extends Controller
             'status' => 'pending',
             'message' => 'Gracias. Tu comentario quedó esperando moderación.',
         ]);
+    }
+
+    // ------------------------------------------------------------------
+    // Identidad de Google, sin una sola cookie
+    // ------------------------------------------------------------------
+
+    /**
+     * Empieza el camino a Google.
+     *
+     * `volver` tiene que ser una ruta propia: si no, esto sería un
+     * redirector abierto con la cara de un sitio conocido, que es la mitad
+     * del trabajo de un phishing.
+     */
+    public function googleStart(Request $request): Response
+    {
+        $google = new GoogleOAuth($this->app);
+
+        if (!$this->googleHabilitado($google)) {
+            return $this->fail('Comentar con Google no está habilitado.', 404);
+        }
+
+        $this->app->limiter->hit('comment_google', $request->ipHash, max: 20, perSeconds: 900);
+
+        $volver = (string) $request->get('volver', '/');
+
+        if (!preg_match('#^/[a-z0-9/\-]{0,160}$#i', $volver)) {
+            $volver = '/';
+        }
+
+        return Response::away($google->authUrl(
+            $this->app->url('/comentarios/google/vuelta'),
+            ['tipo' => 'comentario', 'volver' => $volver]
+        ));
+    }
+
+    /**
+     * La vuelta de Google.
+     *
+     * Acá está la decisión que hace que esto no rompa nada: **no se abre
+     * sesión ni se manda cookie**. Se arma un vale firmado con la APP_KEY
+     * —nombre, correo, vencimiento— y se lo devuelve al navegador en el
+     * fragmento de la URL, que no viaja al servidor ni queda en ningún log.
+     * El JavaScript lo guarda en localStorage y lo manda con el comentario.
+     *
+     * Con cookie habría sido más corto, pero el visitante anónimo dejaría de
+     * ser anónimo y el caché de página dejaría de servirle a todo el mundo
+     * la misma copia. Esa decisión vale más que la comodidad de dos líneas.
+     */
+    public function googleReturn(Request $request): Response
+    {
+        $google = new GoogleOAuth($this->app);
+
+        if (!$this->googleHabilitado($google)) {
+            return $this->fail('Comentar con Google no está habilitado.', 404);
+        }
+
+        $state = $google->openState((string) $request->get('state', ''));
+
+        if ($state === null || ($state['tipo'] ?? '') !== 'comentario') {
+            return Response::redirect('/');
+        }
+
+        $volver = (string) ($state['volver'] ?? '/');
+
+        if (($request->get('code') ?? '') === '') {
+            return Response::redirect($volver . '#ncms-google=cancelado');
+        }
+
+        try {
+            $identidad = $google->identity(
+                (string) $request->get('code'),
+                $this->app->url('/comentarios/google/vuelta')
+            );
+        } catch (\Throwable $e) {
+            $this->app->logger->warning('Falló identificar para comentar', ['error' => $e->getMessage()]);
+
+            return Response::redirect($volver . '#ncms-google=error');
+        }
+
+        $vale = $this->firmarIdentidad($identidad['nombre'], $identidad['email']);
+
+        return Response::redirect($volver . '#ncms-id=' . $vale);
+    }
+
+    /** Vale de identidad: nombre, correo y cuándo vence, firmado. */
+    private function firmarIdentidad(string $nombre, string $email): string
+    {
+        $payload = rtrim(strtr(base64_encode((string) json_encode([
+            'n' => mb_substr($nombre, 0, 120),
+            'e' => $email,
+            't' => time(),
+        ], JSON_UNESCAPED_UNICODE)), '+/', '-_'), '=');
+
+        $firma = rtrim(strtr(base64_encode(hash_hmac(
+            'sha256',
+            'ident:' . $payload,
+            $this->app->env->require('HASH_PEPPER'),
+            true
+        )), '+/', '-_'), '=');
+
+        return $payload . '.' . $firma;
+    }
+
+    /**
+     * Abre el vale si la firma es nuestra y no venció.
+     *
+     * Dura ocho horas: lo suficiente para leer una entrada, pensarlo y
+     * volver a comentar, y poco para que quede dando vueltas en el navegador
+     * de una computadora compartida.
+     *
+     * @return array{nombre:string,email:string}|null
+     */
+    private function abrirIdentidad(string $vale): ?array
+    {
+        $partes = explode('.', $vale, 2);
+
+        if (count($partes) !== 2) {
+            return null;
+        }
+
+        $esperada = hash_hmac('sha256', 'ident:' . $partes[0], $this->app->env->require('HASH_PEPPER'), true);
+        $recibida = base64_decode(strtr($partes[1], '-_', '+/'), true);
+
+        if ($recibida === false || !hash_equals($esperada, $recibida)) {
+            return null;
+        }
+
+        $json = base64_decode(strtr($partes[0], '-_', '+/'), true);
+        $data = $json === false ? null : json_decode($json, true);
+
+        if (!is_array($data) || time() - (int) ($data['t'] ?? 0) > 28800) {
+            return null;
+        }
+
+        $email = mb_strtolower((string) ($data['e'] ?? ''));
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return null;
+        }
+
+        return ['nombre' => mb_substr((string) ($data['n'] ?? ''), 0, 120), 'email' => $email];
+    }
+
+    private function googleHabilitado(GoogleOAuth $google): bool
+    {
+        return $this->app->settings->bool('google_enabled', false)
+            && $this->app->settings->bool('google_comentarios', true)
+            && $google->configurado()
+            && in_array($this->app->settings->get('comments_identidad', 'ambos'), ['google', 'ambos'], true);
     }
 
     // ------------------------------------------------------------------
@@ -255,10 +424,19 @@ final class CommentController extends Controller
         return $published !== false && $published >= strtotime("-{$days} days");
     }
 
-    private function decideStatus(int $score, string $emailHash, Spam $spam): string
+    private function decideStatus(int $score, string $emailHash, Spam $spam, string $fuente): string
     {
         if ($score >= Spam::SPAM_THRESHOLD) {
             return Comment::SPAM;
+        }
+
+        // Quien se identificó con una cuenta de Google verificada puede
+        // pasar directo, si está configurado así. No es confianza ciega: el
+        // puntaje de arriba se le aplicó igual, y hacerse diez cuentas de
+        // Google para spamear cuesta bastante más que escribir diez nombres
+        // distintos en un formulario.
+        if ($fuente === 'google' && $this->app->settings->bool('comments_google_autoaprueba', true)) {
+            return Comment::APPROVED;
         }
 
         // Moderar siempre es el valor por defecto y la opción correcta para un

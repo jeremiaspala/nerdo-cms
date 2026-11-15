@@ -305,6 +305,12 @@ try {
             }
             break;
 
+        case 'audit:purge':
+            $dias = max(30, (int) opt($args, 'days', '180'));
+            $n = (new App\Models\AuditLog($app->db))->purge($dias);
+            out("Bitácora: {$n} registro(s) de más de {$dias} días borrados.");
+            break;
+
         case 'cache:clear':
             $n = $app->pages->purgeAll();
             out("Caché de página vaciado: {$n} archivo(s).");
@@ -384,6 +390,7 @@ try {
             out('  cache:stats      qué hay guardado y con qué antigüedad');
             out('  cache:refresh    [--minutes=15] vacía si se publicó algo programado');
             out('  blocks:migrate   [--dry-run] [--rehacer] [--id=N] HTML -> bloques');
+            out('  audit:purge      [--days=180] limpia la bitácora vieja');
             out('  routes           lista las rutas');
     }
 } catch (Throwable $e) {

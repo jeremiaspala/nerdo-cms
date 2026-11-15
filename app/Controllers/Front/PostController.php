@@ -78,6 +78,13 @@ final class PostController extends Controller
             'commentsClosedReason' => $closedReason,
             // El tema carga comments.js solo si hay formulario que atender.
             'needsComments' => $open,
+            // Cómo se identifica quien comenta, y si hay botón de Google.
+            'identidad' => (string) $this->app->settings->get('comments_identidad', 'ambos'),
+            'comentarGoogle' => $open
+                && $this->app->settings->bool('google_enabled', false)
+                && $this->app->settings->bool('google_comentarios', true)
+                && (new \App\Services\GoogleOAuth($this->app))->configurado()
+                && $this->app->settings->get('comments_identidad', 'ambos') !== 'anonimo',
         ]);
     }
 

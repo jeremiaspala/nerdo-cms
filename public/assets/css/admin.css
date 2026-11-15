@@ -644,3 +644,38 @@ textarea.in { resize: vertical; line-height: 1.6; }
   border: 1px solid var(--line); border-radius: 7px; padding: 11px; background: #f7faf9;
   resize: vertical;
 }
+
+/* ---------- bitácora ---------- */
+.filtros-form { margin-bottom: 14px; }
+.filtros-extra {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px;
+}
+.filtros-extra .lbl { margin: 0; }
+.filtros-extra .in { width: auto; }
+.alerta { color: var(--danger); font-weight: 600; }
+
+/* ---------- entrar con Google ---------- */
+.logino {
+  text-align: center; font-size: 11.5px; color: var(--ink-3); margin: 16px 0 12px;
+  text-transform: uppercase; letter-spacing: .12em;
+}
+.googlebtn {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; padding: 11px 14px; border: 1px solid var(--line); border-radius: 7px;
+  background: var(--paper); color: var(--ink); font-size: 13.5px; font-weight: 600;
+  text-decoration: none;
+}
+.googlebtn:hover { border-color: var(--accent); }
+
+/* ---------- aviso con datos para copiar ---------- */
+.avisobox {
+  background: #f3f6f6; border: 1px solid var(--line); border-radius: 8px;
+  padding: 14px 16px; margin-bottom: 22px;
+}
+.avisobox .strong { font-size: 13px; margin-bottom: 8px; }
+.avisobox .hint { margin-top: 8px; }
+.urlbox {
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.7; background: var(--paper);
+  border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; margin-top: 6px;
+  overflow-x: auto; user-select: all;
+}

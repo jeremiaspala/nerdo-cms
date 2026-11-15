@@ -12,6 +12,7 @@ use App\Core\Response;
 use App\Models\PasswordReset;
 use App\Models\User;
 use App\Services\Mailer;
+use App\Services\GoogleOAuth;
 use App\Services\Spam;
 use App\Services\Totp;
 
@@ -131,6 +132,95 @@ final class AuthController
         $this->auth->login($request, $user);
 
         return Response::redirect($this->app->adminPath);
+    }
+
+    // ------------------------------------------------------------------
+    // Entrar con Google
+    // ------------------------------------------------------------------
+
+    /** Manda a Google con un `state` firmado. */
+    public function googleStart(Request $request): Response
+    {
+        $google = new GoogleOAuth($this->app);
+
+        if (!$this->googleHabilitado($google)) {
+            return $this->loginPage('Entrar con Google no está habilitado.', '', 404);
+        }
+
+        return Response::away($google->authUrl($this->googleRedirect(), ['tipo' => 'panel']));
+    }
+
+    /**
+     * La vuelta de Google.
+     *
+     * Google dice **quién** es; **si puede entrar** lo sigue decidiendo el
+     * CMS: la cuenta tiene que existir y tener el mismo correo. Sin esa
+     * regla, cualquiera con una cuenta de Gmail se daría de alta solo en el
+     * panel, que es exactamente lo que no queremos.
+     */
+    public function googleReturn(Request $request): Response
+    {
+        $google = new GoogleOAuth($this->app);
+
+        if (!$this->googleHabilitado($google)) {
+            return $this->loginPage('Entrar con Google no está habilitado.', '', 404);
+        }
+
+        $this->app->limiter->hit('google_login', $request->ipHash, max: 20, perSeconds: 900);
+
+        $state = $google->openState((string) $request->get('state', ''));
+
+        if ($state === null || ($state['tipo'] ?? '') !== 'panel') {
+            return $this->loginPage('Esa vuelta de Google no es de acá o ya venció. Probá de nuevo.', '', 400);
+        }
+
+        if (($request->get('error') ?? '') !== '' || ($request->get('code') ?? '') === '') {
+            return $this->loginPage('Google no autorizó el acceso.', '', 401);
+        }
+
+        try {
+            $identidad = $google->identity((string) $request->get('code'), $this->googleRedirect());
+        } catch (\Throwable $e) {
+            $this->app->logger->warning('Falló entrar con Google', ['error' => $e->getMessage()]);
+
+            return $this->loginPage('No se pudo verificar la cuenta de Google.', '', 401);
+        }
+
+        $user = (new User($this->app->db))->findByEmail($identidad['email']);
+
+        if ($user === null) {
+            // El mensaje no dice «esa cuenta no existe» por lo mismo que el
+            // login normal: sería confirmar qué correos tienen acceso.
+            $this->auth->audit(null, 'login.google_rechazado', $identidad['email'], $request);
+
+            return $this->loginPage('Esa cuenta de Google no tiene acceso al panel.', '', 403);
+        }
+
+        // El segundo factor se pide igual: Google verifica el correo, no que
+        // quien está del otro lado sea quien dice ser en este sitio.
+        if ((int) ($user['totp_confirmed'] ?? 0) === 1) {
+            $this->app->session->set('totp_pending', (int) $user['id']);
+            $this->app->session->set('totp_pending_at', time());
+
+            return $this->page('totp', ['error' => '']);
+        }
+
+        $this->auth->login($request, $user);
+        $this->auth->audit((int) $user['id'], 'login.google', $identidad['email'], $request);
+
+        return Response::redirect($this->app->adminPath);
+    }
+
+    private function googleHabilitado(GoogleOAuth $google): bool
+    {
+        return $this->app->settings->bool('google_enabled', false)
+            && $this->app->settings->bool('google_panel', true)
+            && $google->configurado();
+    }
+
+    private function googleRedirect(): string
+    {
+        return $this->app->url($this->app->adminPath . '/entrar/google/vuelta');
     }
 
     // ------------------------------------------------------------------
@@ -348,6 +438,7 @@ final class AuthController
             'email' => $email,
             'flash' => $flash,
             'pow' => (new Spam($this->app))->issue(self::SCOPE_LOGIN),
+            'google' => $this->googleHabilitado(new GoogleOAuth($this->app)),
             'csrf' => $this->app->csrf->field(),
             'adminPath' => $this->app->adminPath,
             'siteTitle' => (string) $this->app->settings->get('site_title', 'Nerdadas!'),

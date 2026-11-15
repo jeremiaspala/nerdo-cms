@@ -53,6 +53,22 @@
     <p class="loginstate" id="login-state" role="status" aria-live="polite"></p>
   </form>
 
+  <?php if (!empty($google)): ?>
+    <p class="logino">o</p>
+    <a class="googlebtn" href="<?= e($adminPath) ?>/entrar/google">
+      <?php /* El logo de Google como SVG en línea: su guía de marca pide el
+               logo, y bajarlo de un dominio de Google en la pantalla de
+               login sería avisarle a Google cada vez que alguien la abre. */ ?>
+      <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">
+        <path fill="#4285F4" d="M45 24c0-1.6-.1-2.7-.4-4H24v7.5h12c-.2 2-1.5 5-4.4 7l6.7 5.2C42.2 36.3 45 30.7 45 24z"/>
+        <path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-6.9-5.4c-1.9 1.3-4.4 2.2-7.6 2.2-5.8 0-10.7-3.8-12.5-9.1l-7.1 5.5C8 41.1 15.4 46 24 46z"/>
+        <path fill="#FBBC05" d="M11.5 28.4c-.5-1.4-.8-2.9-.8-4.4s.3-3 .7-4.4l-7.1-5.5C2.9 17 2 20.4 2 24s.9 7 2.4 9.9z"/>
+        <path fill="#EA4335" d="M24 10.7c3.2 0 5.4 1.4 6.7 2.5l5.9-5.8C32.9 4.1 29.9 2 24 2 15.4 2 8 6.9 4.4 14.1l7.1 5.5c1.8-5.3 6.7-8.9 12.5-8.9z"/>
+      </svg>
+      Entrar con Google
+    </a>
+  <?php endif; ?>
+
   <p class="loginlinks">
     <a href="<?= e($adminPath) ?>/recuperar">¿Olvidaste la contraseña?</a>
   </p>
